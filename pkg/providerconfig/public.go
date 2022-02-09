@@ -1,10 +1,12 @@
 package providerconfig
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/hostfactor/api/go/providerconfig"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"io/fs"
 	"path/filepath"
@@ -13,17 +15,19 @@ import (
 var DefaultClient = NewClient()
 
 var (
-	DefaultFilename = "provider.yaml"
+	DefaultProviderFilename = "provider.yaml"
+	DefaultSettingsFilename = "settings.json"
 )
 
 type ProviderConfig struct {
-	Config   *providerconfig.ProviderConfig
-	Filename string
+	Config       *providerconfig.ProviderConfig
+	SettingsFile *gojsonschema.Schema
+	Filename     string
 }
 
 type Client interface {
 	// Load loads a single ProviderConfig from the specified directory.
-	Load(f fs.FS, filename string) (*ProviderConfig, error)
+	Load(f fs.FS, providerFilename, settingsFilename string) (*ProviderConfig, error)
 
 	// LoadAll loads all provider configs within the directory. Assumes that every Provider directory is housed as a child
 	// directory of the specified fs.FS.
@@ -34,8 +38,8 @@ func NewClient() Client {
 	return &client{}
 }
 
-func Load(f fs.FS, filename string) (*ProviderConfig, error) {
-	return DefaultClient.Load(f, filename)
+func Load(f fs.FS) (*ProviderConfig, error) {
+	return DefaultClient.Load(f, DefaultProviderFilename, DefaultSettingsFilename)
 }
 
 type client struct {
@@ -58,7 +62,7 @@ func (c *client) LoadAll(f fs.FS) ([]*ProviderConfig, error) {
 			return nil, err
 		}
 
-		conf, err := c.Load(sub, DefaultFilename)
+		conf, err := c.Load(sub, DefaultProviderFilename, DefaultSettingsFilename)
 		if err != nil {
 			return nil, err
 		}
@@ -70,12 +74,39 @@ func (c *client) LoadAll(f fs.FS) ([]*ProviderConfig, error) {
 	return confs, nil
 }
 
-func (c *client) Load(f fs.FS, filename string) (*ProviderConfig, error) {
-	content, err := fs.ReadFile(f, filename)
+func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*ProviderConfig, error) {
+	settingsContent, err := fs.ReadFile(f, settingsFilename)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("%s was not found. A JSON schema file is required for every provider", settingsFilename)
+		}
+		return nil, err
+	}
+
+	out := &ProviderConfig{
+		Filename: providerFilename,
+	}
+
+	loader := gojsonschema.NewBytesLoader(settingsContent)
+	out.SettingsFile, err = gojsonschema.NewSchema(loader)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s JSON schema file: %s", settingsFilename, err.Error())
+	}
+
+	providerContent, err := fs.ReadFile(f, providerFilename)
 	if err != nil {
 		return nil, err
 	}
 
+	out.Config, err = c.unmarshalProviderFile(providerFilename, providerContent)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+func (c *client) unmarshalProviderFile(filename string, content []byte) (*providerconfig.ProviderConfig, error) {
 	ext := filepath.Ext(filename)
 	if ext == ".yaml" || ext == ".yml" {
 		m := map[string]interface{}{}
@@ -94,15 +125,10 @@ func (c *client) Load(f fs.FS, filename string) (*ProviderConfig, error) {
 	}
 
 	conf := new(providerconfig.ProviderConfig)
-	err = jsonpb.UnmarshalString(string(content), conf)
+	err := jsonpb.UnmarshalString(string(content), conf)
 	if err != nil {
 		return nil, err
 	}
 
-	out := &ProviderConfig{
-		Config:   conf,
-		Filename: filename,
-	}
-
-	return out, nil
+	return conf, err
 }

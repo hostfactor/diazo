@@ -1,9 +1,11 @@
 package providerconfig
 
 import (
+	"fmt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/stretchr/testify/suite"
+	"github.com/xeipuuv/gojsonschema"
 	"google.golang.org/protobuf/testing/protocmp"
 	"testing"
 	"testing/fstest"
@@ -36,6 +38,9 @@ file_inputs:
       bucket_folder: saves
 `),
 		},
+		"settings.json": {
+			Data: []byte(`{}`),
+		},
 	}
 
 	expected := &ProviderConfig{
@@ -58,18 +63,18 @@ file_inputs:
 				},
 			},
 		},
-		Filename: "provider.yaml",
+		Filename:     "provider.yaml",
+		SettingsFile: &gojsonschema.Schema{},
 	}
 
 	// -- When
 	//
-	actual, err := DefaultClient.Load(testFs, "provider.yaml")
+	actual, err := DefaultClient.Load(testFs, "provider.yaml", "settings.json")
 
 	// -- Then
 	//
 	if p.NoError(err) {
-		p.Empty(cmp.Diff(expected, actual, protocmp.Transform()))
-		p.Equal(expected, actual)
+		p.EqualProviderConfig(expected, actual)
 	}
 }
 
@@ -102,6 +107,9 @@ func (p *PublicTestSuite) TestLoadJson() {
 }
 `),
 		},
+		"settings.json": {
+			Data: []byte(`{}`),
+		},
 	}
 
 	expected := &ProviderConfig{
@@ -129,24 +137,28 @@ func (p *PublicTestSuite) TestLoadJson() {
 
 	// -- When
 	//
-	actual, err := DefaultClient.Load(testFs, "provider.json")
+	actual, err := DefaultClient.Load(testFs, "provider.json", "settings.json")
 
 	// -- Then
 	//
 	if p.NoError(err) {
-		p.Empty(cmp.Diff(expected, actual, protocmp.Transform()))
-		p.Equal(expected, actual)
+		p.EqualProviderConfig(expected, actual)
 	}
 }
 
 func (p *PublicTestSuite) TestLoadMissingFile() {
 	// -- Given
 	//
-	testFs := fstest.MapFS{"provider.yaml": {}}
+	testFs := fstest.MapFS{
+		"provider.yaml": {},
+		"settings.json": {
+			Data: []byte(`{}`),
+		},
+	}
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.yml")
+	actual, err := p.Target.Load(testFs, "provider.yml", "settings.json")
 
 	// -- Then
 	//
@@ -157,34 +169,40 @@ func (p *PublicTestSuite) TestLoadMissingFile() {
 func (p *PublicTestSuite) TestLoadInvalidYaml() {
 	// -- Given
 	//
-	testFs := fstest.MapFS{"provider.yaml": {
-		Data: []byte(`
-invalid file.
-`),
-	}}
+	testFs := fstest.MapFS{
+		"provider.yaml": {
+			Data: []byte(`invalid file.`),
+		},
+		"settings.json": {
+			Data: []byte(`{}`),
+		},
+	}
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.yaml")
+	actual, err := p.Target.Load(testFs, "provider.yaml", "settings.json")
 
 	// -- Then
 	//
 	p.Nil(actual)
-	p.EqualError(err, "yaml: unmarshal errors:\n  line 2: cannot unmarshal !!str `invalid...` into map[string]interface {}")
+	p.EqualError(err, "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `invalid...` into map[string]interface {}")
 }
 
 func (p *PublicTestSuite) TestLoadInvalidJson() {
 	// -- Given
 	//
-	testFs := fstest.MapFS{"provider.json": {
-		Data: []byte(`
-invalid file.
-`),
-	}}
+	testFs := fstest.MapFS{
+		"provider.json": {
+			Data: []byte(`invalid file.`),
+		},
+		"settings.json": {
+			Data: []byte(`{}`),
+		},
+	}
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.json")
+	actual, err := p.Target.Load(testFs, "provider.json", "settings.json")
 
 	// -- Then
 	//
@@ -192,18 +210,62 @@ invalid file.
 	p.EqualError(err, "invalid character 'i' looking for beginning of value")
 }
 
-func (p *PublicTestSuite) TestLoadInvalidFileExt() {
+func (p *PublicTestSuite) TestLoadMissingSettingsJson() {
 	// -- Given
 	//
-	testFs := fstest.MapFS{"provider.txt": {
-		Data: []byte(`
-invalid file.
-`),
-	}}
+	testFs := fstest.MapFS{
+		"provider.json": {
+			Data: []byte(`invalid file.`),
+		},
+	}
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.txt")
+	actual, err := p.Target.Load(testFs, "provider.json", "settings.json")
+
+	// -- Then
+	//
+	p.Nil(actual)
+	p.EqualError(err, "settings.json was not found. A JSON schema file is required for every provider")
+}
+
+func (p *PublicTestSuite) TestLoadInvalidSettingsJson() {
+	// -- Given
+	//
+	testFs := fstest.MapFS{
+		"provider.json": {
+			Data: []byte(`{}`),
+		},
+		"settings.json": {
+			Data: []byte(`invalid file.`),
+		},
+	}
+
+	// -- When
+	//
+	actual, err := p.Target.Load(testFs, "provider.json", "settings.json")
+
+	// -- Then
+	//
+	p.Nil(actual)
+	p.EqualError(err, "invalid settings.json JSON schema file: invalid character 'i' looking for beginning of value")
+}
+
+func (p *PublicTestSuite) TestLoadInvalidFileExt() {
+	// -- Given
+	//
+	testFs := fstest.MapFS{
+		"provider.txt": {
+			Data: []byte(`invalid file.`),
+		},
+		"settings.json": {
+			Data: []byte(`{}`),
+		},
+	}
+
+	// -- When
+	//
+	actual, err := p.Target.Load(testFs, "provider.txt", "settings.json")
 
 	// -- Then
 	//
@@ -216,19 +278,22 @@ func (p *PublicTestSuite) TestLoadAll() {
 	//
 	testFs := fstest.MapFS{
 		"minecraft/provider.yaml": {
-			Data: []byte(`
-title: minecraft
-`),
+			Data: []byte(`title: minecraft`),
+		},
+		"minecraft/settings.json": {
+			Data: []byte(`{}`),
 		},
 		"factorio/provider.yaml": {
-			Data: []byte(`
-title: factorio
-`),
+			Data: []byte(`title: factorio`),
+		},
+		"factorio/settings.json": {
+			Data: []byte(`{}`),
 		},
 		"valheim/provider.yaml": {
-			Data: []byte(`
-title: valheim
-`),
+			Data: []byte(`title: valheim`),
+		},
+		"valheim/settings.json": {
+			Data: []byte(`{}`),
 		},
 		"random_file.txt": {},
 	}
@@ -255,8 +320,41 @@ title: valheim
 	// -- Then
 	//
 	if p.NoError(err) {
-		p.Empty(cmp.Diff(expected, actual, protocmp.Transform()))
+		p.EqualProviderConfigs(expected, actual)
 	}
+}
+
+type EqualProviderConfigsOpt func(o equalProviderConfigOpts) *equalProviderConfigOpts
+
+type equalProviderConfigOpts struct {
+}
+
+func (p *PublicTestSuite) EqualProviderConfig(expected, actual *ProviderConfig, o ...EqualProviderConfigsOpt) bool {
+	opts := &equalProviderConfigOpts{}
+	for _, v := range o {
+		opts = v(*opts)
+	}
+
+	if expected.SettingsFile != nil {
+		p.NotNil(actual.SettingsFile)
+	}
+
+	p.Empty(cmp.Diff(expected.Config, actual.Config, protocmp.Transform()))
+	return p.Equal(expected.Filename, actual.Filename)
+}
+
+func (p *PublicTestSuite) EqualProviderConfigs(expected, actual []*ProviderConfig, o ...EqualProviderConfigsOpt) bool {
+	if !p.Equal(len(expected), len(actual)) {
+		return false
+	}
+
+	for idx, v := range expected {
+		if !p.EqualProviderConfig(v, actual[idx], o...) {
+			fmt.Printf("element %d is not equal.", idx)
+			return false
+		}
+	}
+	return true
 }
 
 func TestPublicTestSuite(t *testing.T) {
