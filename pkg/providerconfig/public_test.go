@@ -20,6 +20,7 @@ type PublicTestSuite struct {
 func (p *PublicTestSuite) TestLoad() {
 	// -- Given
 	//
+	expectedSettings := []byte(`{}`)
 	testFs := fstest.MapFS{
 		"provider.yaml": {
 			Data: []byte(`
@@ -39,7 +40,7 @@ file_inputs:
 `),
 		},
 		"settings.json": {
-			Data: []byte(`{}`),
+			Data: expectedSettings,
 		},
 	}
 
@@ -63,8 +64,9 @@ file_inputs:
 				},
 			},
 		},
-		Filename:     "provider.yaml",
-		SettingsFile: &gojsonschema.Schema{},
+		Filename:       "provider.yaml",
+		SettingsSchema: &gojsonschema.Schema{},
+		RawSettings:    expectedSettings,
 	}
 
 	// -- When
@@ -81,6 +83,7 @@ file_inputs:
 func (p *PublicTestSuite) TestLoadJson() {
 	// -- Given
 	//
+	expectedSettings := []byte(`{}`)
 	testFs := fstest.MapFS{
 		"provider.json": {
 			Data: []byte(`
@@ -108,7 +111,7 @@ func (p *PublicTestSuite) TestLoadJson() {
 `),
 		},
 		"settings.json": {
-			Data: []byte(`{}`),
+			Data: expectedSettings,
 		},
 	}
 
@@ -132,7 +135,9 @@ func (p *PublicTestSuite) TestLoadJson() {
 				},
 			},
 		},
-		Filename: "provider.json",
+		Filename:       "provider.json",
+		SettingsSchema: &gojsonschema.Schema{},
+		RawSettings:    expectedSettings,
 	}
 
 	// -- When
@@ -149,10 +154,11 @@ func (p *PublicTestSuite) TestLoadJson() {
 func (p *PublicTestSuite) TestLoadMissingFile() {
 	// -- Given
 	//
+	expectedSettings := []byte(`{}`)
 	testFs := fstest.MapFS{
 		"provider.yaml": {},
 		"settings.json": {
-			Data: []byte(`{}`),
+			Data: expectedSettings,
 		},
 	}
 
@@ -169,12 +175,13 @@ func (p *PublicTestSuite) TestLoadMissingFile() {
 func (p *PublicTestSuite) TestLoadInvalidYaml() {
 	// -- Given
 	//
+	expectedSettings := []byte(`{}`)
 	testFs := fstest.MapFS{
 		"provider.yaml": {
 			Data: []byte(`invalid file.`),
 		},
 		"settings.json": {
-			Data: []byte(`{}`),
+			Data: expectedSettings,
 		},
 	}
 
@@ -276,40 +283,47 @@ func (p *PublicTestSuite) TestLoadInvalidFileExt() {
 func (p *PublicTestSuite) TestLoadAll() {
 	// -- Given
 	//
+	expectedSettings := []byte(`{}`)
 	testFs := fstest.MapFS{
 		"minecraft/provider.yaml": {
 			Data: []byte(`title: minecraft`),
 		},
 		"minecraft/settings.json": {
-			Data: []byte(`{}`),
+			Data: expectedSettings,
 		},
 		"factorio/provider.yaml": {
 			Data: []byte(`title: factorio`),
 		},
 		"factorio/settings.json": {
-			Data: []byte(`{}`),
+			Data: expectedSettings,
 		},
 		"valheim/provider.yaml": {
 			Data: []byte(`title: valheim`),
 		},
 		"valheim/settings.json": {
-			Data: []byte(`{}`),
+			Data: expectedSettings,
 		},
 		"random_file.txt": {},
 	}
 
 	expected := []*ProviderConfig{
 		{
-			Config:   &providerconfig.ProviderConfig{Title: "factorio"},
-			Filename: "factorio/provider.yaml",
+			Config:         &providerconfig.ProviderConfig{Title: "factorio"},
+			Filename:       "factorio/provider.yaml",
+			SettingsSchema: &gojsonschema.Schema{},
+			RawSettings:    expectedSettings,
 		},
 		{
-			Config:   &providerconfig.ProviderConfig{Title: "minecraft"},
-			Filename: "minecraft/provider.yaml",
+			Config:         &providerconfig.ProviderConfig{Title: "minecraft"},
+			Filename:       "minecraft/provider.yaml",
+			SettingsSchema: &gojsonschema.Schema{},
+			RawSettings:    expectedSettings,
 		},
 		{
-			Config:   &providerconfig.ProviderConfig{Title: "valheim"},
-			Filename: "valheim/provider.yaml",
+			Config:         &providerconfig.ProviderConfig{Title: "valheim"},
+			Filename:       "valheim/provider.yaml",
+			SettingsSchema: &gojsonschema.Schema{},
+			RawSettings:    expectedSettings,
 		},
 	}
 
@@ -335,10 +349,13 @@ func (p *PublicTestSuite) EqualProviderConfig(expected, actual *ProviderConfig, 
 		opts = v(*opts)
 	}
 
-	if expected.SettingsFile != nil {
-		p.NotNil(actual.SettingsFile)
+	if expected.SettingsSchema != nil {
+		p.NotNil(actual.SettingsSchema)
+	} else {
+		p.Nil(actual.SettingsSchema)
 	}
 
+	p.Equal(expected.RawSettings, actual.RawSettings)
 	p.Empty(cmp.Diff(expected.Config, actual.Config, protocmp.Transform()))
 	return p.Equal(expected.Filename, actual.Filename)
 }

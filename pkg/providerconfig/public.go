@@ -20,9 +20,10 @@ var (
 )
 
 type ProviderConfig struct {
-	Config       *providerconfig.ProviderConfig
-	SettingsFile *gojsonschema.Schema
-	Filename     string
+	Config         *providerconfig.ProviderConfig
+	SettingsSchema *gojsonschema.Schema
+	RawSettings    []byte
+	Filename       string
 }
 
 type Client interface {
@@ -75,7 +76,11 @@ func (c *client) LoadAll(f fs.FS) ([]*ProviderConfig, error) {
 }
 
 func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*ProviderConfig, error) {
-	settingsContent, err := fs.ReadFile(f, settingsFilename)
+	var err error
+	out := &ProviderConfig{
+		Filename: providerFilename,
+	}
+	out.RawSettings, err = fs.ReadFile(f, settingsFilename)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, fmt.Errorf("%s was not found. A JSON schema file is required for every provider", settingsFilename)
@@ -83,12 +88,8 @@ func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*Prov
 		return nil, err
 	}
 
-	out := &ProviderConfig{
-		Filename: providerFilename,
-	}
-
-	loader := gojsonschema.NewBytesLoader(settingsContent)
-	out.SettingsFile, err = gojsonschema.NewSchema(loader)
+	loader := gojsonschema.NewBytesLoader(out.RawSettings)
+	out.SettingsSchema, err = gojsonschema.NewSchema(loader)
 	if err != nil {
 		return nil, fmt.Errorf("invalid %s JSON schema file: %s", settingsFilename, err.Error())
 	}
