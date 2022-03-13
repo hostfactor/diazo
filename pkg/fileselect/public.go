@@ -10,7 +10,7 @@ func MergeFileSelect(f1, f2 []*filesystem.FileSelection) []*filesystem.FileSelec
 	}
 
 	for i, v := range f2 {
-		found, idx := FindFileSelection(v.Name, out)
+		found, idx := FindFileSelection(v.GetVolumeName(), out)
 		if found == nil {
 			out = append(out, f2[i])
 		} else {
@@ -23,7 +23,7 @@ func MergeFileSelect(f1, f2 []*filesystem.FileSelection) []*filesystem.FileSelec
 
 func FindFileSelection(name string, fs []*filesystem.FileSelection) (*filesystem.FileSelection, int) {
 	for i, v := range fs {
-		if v.Name == name {
+		if v.GetVolumeName() == name {
 			return v, i
 		}
 	}
