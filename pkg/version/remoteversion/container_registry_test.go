@@ -3,6 +3,7 @@ package remoteversion
 import (
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/hostfactor/diazo/pkg/containers"
+	containersmock "github.com/hostfactor/diazo/pkg/containers/mocks"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -12,12 +13,12 @@ type ContainerRegistryTestSuite struct {
 
 	Service *containerRegistry
 
-	ContainerClient *containers.MockClient
+	ContainerClient *containersmock.Client
 	ImageUrl        containers.ImageURL
 }
 
 func (c *ContainerRegistryTestSuite) BeforeTest(_, _ string) {
-	c.ContainerClient = new(containers.MockClient)
+	c.ContainerClient = new(containersmock.Client)
 	c.ImageUrl = containers.DockerImageUrl("ghcr.io/hostfactor/minecraft-server")
 
 	c.Service = &containerRegistry{

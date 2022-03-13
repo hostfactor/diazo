@@ -30,13 +30,17 @@ version_sync:
     container_registry: 
       matches_tag: '^(latest|java8|java9|java11|java15)$'
 image: itzg/minecraft-server
-file_inputs:
-  - accept_props:
-      - .jar
-    help_text: 'A *.zip file of your minecraft world data.'
-    description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
-    destination:
-      bucket_folder: saves
+volumes:
+  - name: derp
+    mount:
+      path: /path/to/file
+    file_input:
+      accept_props:
+        - .jar
+      help_text: 'A *.zip file of your minecraft world data.'
+      description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
+      destination:
+        bucket_folder: saves
 `),
 		},
 		"settings.json": {
@@ -44,7 +48,7 @@ file_inputs:
 		},
 	}
 
-	expected := &ProviderConfig{
+	expected := &LoadedProviderConfig{
 		Config: &providerconfig.ProviderConfig{
 			Title: "minecraft",
 			VersionSync: &providerconfig.VersionSyncSpec{
@@ -55,12 +59,18 @@ file_inputs:
 				},
 			},
 			Image: "itzg/minecraft-server",
-			FileInputs: []*providerconfig.FileInputParam{
+			Volumes: []*providerconfig.Volume{
 				{
-					AcceptProps: []string{".jar"},
-					HelpText:    "A *.zip file of your minecraft world data.",
-					Destination: &providerconfig.FileInputParamDestination{BucketFolder: "saves"},
-					Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+					Name:  "derp",
+					Mount: &providerconfig.VolumeMount{Path: "/path/to/file"},
+					Source: &providerconfig.Volume_FileInput{
+						FileInput: &providerconfig.FileInputSpec{
+							AcceptProps: []string{".jar"},
+							HelpText:    "A *.zip file of your minecraft world data.",
+							Destination: &providerconfig.FileInputDestinationSpec{Destination: &providerconfig.FileInputDestinationSpec_BucketFolder{BucketFolder: "saves"}},
+							Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+						},
+					},
 				},
 			},
 		},
@@ -97,13 +107,19 @@ func (p *PublicTestSuite) TestLoadJson() {
 		}
 	},
 	"image": "itzg/minecraft-server",
-	"file_inputs": [
+	"volumes": [
 		{
-			"accept_props": [".jar"],
-			"help_text": "A *.zip file of your minecraft world data.",
-			"description": "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
-			"destination": {
-				"bucket_folder": "saves"
+			"name": "derp",
+			"mount": {
+				"path": "/path/to/file"
+			},
+			"file_input": {
+				"accept_props": [".jar"],
+				"help_text": "A *.zip file of your minecraft world data.",
+				"description": "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+				"destination": {
+					"bucket_folder": "saves"
+				}
 			}
 		}
 	]
@@ -115,7 +131,7 @@ func (p *PublicTestSuite) TestLoadJson() {
 		},
 	}
 
-	expected := &ProviderConfig{
+	expected := &LoadedProviderConfig{
 		Config: &providerconfig.ProviderConfig{
 			Title: "minecraft",
 			VersionSync: &providerconfig.VersionSyncSpec{
@@ -126,12 +142,18 @@ func (p *PublicTestSuite) TestLoadJson() {
 				},
 			},
 			Image: "itzg/minecraft-server",
-			FileInputs: []*providerconfig.FileInputParam{
+			Volumes: []*providerconfig.Volume{
 				{
-					AcceptProps: []string{".jar"},
-					HelpText:    "A *.zip file of your minecraft world data.",
-					Destination: &providerconfig.FileInputParamDestination{BucketFolder: "saves"},
-					Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+					Name:  "derp",
+					Mount: &providerconfig.VolumeMount{Path: "/path/to/file"},
+					Source: &providerconfig.Volume_FileInput{
+						FileInput: &providerconfig.FileInputSpec{
+							AcceptProps: []string{".jar"},
+							HelpText:    "A *.zip file of your minecraft world data.",
+							Destination: &providerconfig.FileInputDestinationSpec{Destination: &providerconfig.FileInputDestinationSpec_BucketFolder{BucketFolder: "saves"}},
+							Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+						},
+					},
 				},
 			},
 		},
@@ -306,7 +328,7 @@ func (p *PublicTestSuite) TestLoadAll() {
 		"random_file.txt": {},
 	}
 
-	expected := []*ProviderConfig{
+	expected := []*LoadedProviderConfig{
 		{
 			Config:         &providerconfig.ProviderConfig{Title: "factorio"},
 			Filename:       "factorio/provider.yaml",
@@ -343,7 +365,7 @@ type EqualProviderConfigsOpt func(o equalProviderConfigOpts) *equalProviderConfi
 type equalProviderConfigOpts struct {
 }
 
-func (p *PublicTestSuite) EqualProviderConfig(expected, actual *ProviderConfig, o ...EqualProviderConfigsOpt) bool {
+func (p *PublicTestSuite) EqualProviderConfig(expected, actual *LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
 	opts := &equalProviderConfigOpts{}
 	for _, v := range o {
 		opts = v(*opts)
@@ -360,7 +382,7 @@ func (p *PublicTestSuite) EqualProviderConfig(expected, actual *ProviderConfig, 
 	return p.Equal(expected.Filename, actual.Filename)
 }
 
-func (p *PublicTestSuite) EqualProviderConfigs(expected, actual []*ProviderConfig, o ...EqualProviderConfigsOpt) bool {
+func (p *PublicTestSuite) EqualProviderConfigs(expected, actual []*LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
 	if !p.Equal(len(expected), len(actual)) {
 		return false
 	}

@@ -1,135 +1,43 @@
 package providerconfig
 
 import (
-	"errors"
-	"fmt"
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/hostfactor/api/go/blueprint"
+	"github.com/hostfactor/api/go/blueprint/actions"
+	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/api/go/providerconfig"
-	jsoniter "github.com/json-iterator/go"
-	"github.com/xeipuuv/gojsonschema"
-	"gopkg.in/yaml.v3"
-	"io/fs"
-	"path/filepath"
+	"github.com/hostfactor/diazo/pkg/volume"
 )
 
-var DefaultClient = NewClient()
-
-var (
-	DefaultProviderFilename = "provider.yaml"
-	DefaultSettingsFilename = "settings.json"
-)
-
-type ProviderConfig struct {
-	Config         *providerconfig.ProviderConfig
-	SettingsSchema *gojsonschema.Schema
-	RawSettings    []byte
-	Filename       string
-}
-
-type Client interface {
-	// Load loads a single ProviderConfig from the specified directory.
-	Load(f fs.FS, providerFilename, settingsFilename string) (*ProviderConfig, error)
-
-	// LoadAll loads all provider configs within the directory. Assumes that every Provider directory is housed as a child
-	// directory of the specified fs.FS.
-	LoadAll(f fs.FS) ([]*ProviderConfig, error)
-}
-
-func NewClient() Client {
-	return &client{}
-}
-
-func Load(f fs.FS) (*ProviderConfig, error) {
-	return DefaultClient.Load(f, DefaultProviderFilename, DefaultSettingsFilename)
-}
-
-type client struct {
-}
-
-func (c *client) LoadAll(f fs.FS) ([]*ProviderConfig, error) {
-	entries, err := fs.ReadDir(f, ".")
-	if err != nil {
-		return nil, err
-	}
-
-	confs := make([]*ProviderConfig, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() {
+func ToSetupActions(data *blueprint.BlueprintData, p *providerconfig.ProviderConfig) []*blueprint.SetupAction {
+	acts := make([]*blueprint.SetupAction, 0, len(data.GetSelectedFiles()))
+	volMap := volume.VolumesToMap(p.GetVolumes())
+	for _, selection := range data.GetSelectedFiles() {
+		vol := volMap[selection.GetName()]
+		if vol == nil {
 			continue
 		}
-
-		sub, err := fs.Sub(f, entry.Name())
-		if err != nil {
-			return nil, err
+		sa := MountFileSelectionSetupAction(selection, vol.GetMount())
+		if sa != nil {
+			acts = append(acts, sa)
 		}
-
-		conf, err := c.Load(sub, DefaultProviderFilename, DefaultSettingsFilename)
-		if err != nil {
-			return nil, err
-		}
-		conf.Filename = filepath.Join(entry.Name(), conf.Filename)
-
-		confs = append(confs, conf)
 	}
 
-	return confs, nil
+	return acts
 }
 
-func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*ProviderConfig, error) {
-	var err error
-	out := &ProviderConfig{
-		Filename: providerFilename,
-	}
-	out.RawSettings, err = fs.ReadFile(f, settingsFilename)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("%s was not found. A JSON schema file is required for every provider", settingsFilename)
+func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *providerconfig.VolumeMount) *blueprint.SetupAction {
+	for _, loc := range sel.GetLocations() {
+		if source := loc.GetBucketFile(); source != nil {
+			return &blueprint.SetupAction{
+				File: &blueprint.SetupAction_Download{Download: &actions.DownloadFile{
+					From: &actions.DownloadFile_Storage{Storage: &filesystem.BucketFileMatcher{
+						Matches: &filesystem.FileMatcher{File: &filesystem.FileMatcher_Name{Name: source.GetName()}},
+						Folder:  source.GetFolder(),
+					}},
+					To: mount.GetPath(),
+				}},
+			}
 		}
-		return nil, err
 	}
-
-	loader := gojsonschema.NewBytesLoader(out.RawSettings)
-	out.SettingsSchema, err = gojsonschema.NewSchema(loader)
-	if err != nil {
-		return nil, fmt.Errorf("invalid %s JSON schema file: %s", settingsFilename, err.Error())
-	}
-
-	providerContent, err := fs.ReadFile(f, providerFilename)
-	if err != nil {
-		return nil, err
-	}
-
-	out.Config, err = c.unmarshalProviderFile(providerFilename, providerContent)
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
-}
-
-func (c *client) unmarshalProviderFile(filename string, content []byte) (*providerconfig.ProviderConfig, error) {
-	ext := filepath.Ext(filename)
-	if ext == ".yaml" || ext == ".yml" {
-		m := map[string]interface{}{}
-		err := yaml.Unmarshal(content, &m)
-		if err != nil {
-			return nil, err
-		}
-
-		content, err = jsoniter.Marshal(m)
-		if err != nil {
-			return nil, err
-		}
-	} else if ext != ".json" {
-		return nil, fmt.Errorf("%s is not a supported extension for provider configs", ext)
-
-	}
-
-	conf := new(providerconfig.ProviderConfig)
-	err := jsonpb.UnmarshalString(string(content), conf)
-	if err != nil {
-		return nil, err
-	}
-
-	return conf, err
+	return nil
 }

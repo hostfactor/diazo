@@ -2,7 +2,9 @@ package diazo
 
 import (
 	"github.com/hostfactor/api/go/providerconfig"
+	"github.com/hostfactor/diazo/mocks"
 	"github.com/hostfactor/diazo/pkg/containers"
+	containersmock "github.com/hostfactor/diazo/pkg/containers/mocks"
 	"github.com/hostfactor/diazo/pkg/version/remoteversion"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -12,12 +14,12 @@ type PublicTestSuite struct {
 	suite.Suite
 
 	Service         *client
-	ContainerClient *containers.MockClient
+	ContainerClient *containersmock.Client
 	ImageUrl        containers.DockerImageUrl
 }
 
 func (p *PublicTestSuite) BeforeTest(_, _ string) {
-	p.ContainerClient = new(containers.MockClient)
+	p.ContainerClient = new(containersmock.Client)
 	p.ImageUrl = "ghcr.io/hostfactor/minecraft-server"
 	p.Service = &client{
 		ContainerClient: p.ContainerClient,
@@ -30,7 +32,7 @@ func (p *PublicTestSuite) BeforeTest(_, _ string) {
 func (p *PublicTestSuite) TestSyncVersions() {
 	// -- Given
 	//
-	syncer := new(MockVersionSyncer)
+	syncer := new(mocks.VersionSyncer)
 	given := &providerconfig.VersionSyncSpec{
 		Source: &providerconfig.RemoteVersionSource{
 			ContainerRegistry: &providerconfig.ContainerRegistryVersionSource{
