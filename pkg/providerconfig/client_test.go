@@ -11,13 +11,13 @@ import (
 	"testing/fstest"
 )
 
-type PublicTestSuite struct {
+type ClientTestSuite struct {
 	suite.Suite
 
 	Target *client
 }
 
-func (p *PublicTestSuite) TestLoad() {
+func (p *ClientTestSuite) TestLoad() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -90,7 +90,7 @@ volumes:
 	}
 }
 
-func (p *PublicTestSuite) TestLoadJson() {
+func (p *ClientTestSuite) TestLoadJson() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -173,7 +173,7 @@ func (p *PublicTestSuite) TestLoadJson() {
 	}
 }
 
-func (p *PublicTestSuite) TestLoadMissingFile() {
+func (p *ClientTestSuite) TestLoadMissingFile() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -194,7 +194,7 @@ func (p *PublicTestSuite) TestLoadMissingFile() {
 	p.EqualError(err, "open provider.yml: file does not exist")
 }
 
-func (p *PublicTestSuite) TestLoadInvalidYaml() {
+func (p *ClientTestSuite) TestLoadInvalidYaml() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -217,7 +217,7 @@ func (p *PublicTestSuite) TestLoadInvalidYaml() {
 	p.EqualError(err, "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `invalid...` into map[string]interface {}")
 }
 
-func (p *PublicTestSuite) TestLoadInvalidJson() {
+func (p *ClientTestSuite) TestLoadInvalidJson() {
 	// -- Given
 	//
 	testFs := fstest.MapFS{
@@ -239,7 +239,7 @@ func (p *PublicTestSuite) TestLoadInvalidJson() {
 	p.EqualError(err, "invalid character 'i' looking for beginning of value")
 }
 
-func (p *PublicTestSuite) TestLoadMissingSettingsJson() {
+func (p *ClientTestSuite) TestLoadMissingSettingsJson() {
 	// -- Given
 	//
 	testFs := fstest.MapFS{
@@ -258,7 +258,7 @@ func (p *PublicTestSuite) TestLoadMissingSettingsJson() {
 	p.EqualError(err, "settings.json was not found. A JSON schema file is required for every provider")
 }
 
-func (p *PublicTestSuite) TestLoadInvalidSettingsJson() {
+func (p *ClientTestSuite) TestLoadInvalidSettingsJson() {
 	// -- Given
 	//
 	testFs := fstest.MapFS{
@@ -280,7 +280,7 @@ func (p *PublicTestSuite) TestLoadInvalidSettingsJson() {
 	p.EqualError(err, "invalid settings.json JSON schema file: invalid character 'i' looking for beginning of value")
 }
 
-func (p *PublicTestSuite) TestLoadInvalidFileExt() {
+func (p *ClientTestSuite) TestLoadInvalidFileExt() {
 	// -- Given
 	//
 	testFs := fstest.MapFS{
@@ -302,7 +302,7 @@ func (p *PublicTestSuite) TestLoadInvalidFileExt() {
 	p.EqualError(err, ".txt is not a supported extension for provider configs")
 }
 
-func (p *PublicTestSuite) TestLoadAll() {
+func (p *ClientTestSuite) TestLoadAll() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -365,7 +365,7 @@ type EqualProviderConfigsOpt func(o equalProviderConfigOpts) *equalProviderConfi
 type equalProviderConfigOpts struct {
 }
 
-func (p *PublicTestSuite) EqualProviderConfig(expected, actual *LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
+func (p *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
 	opts := &equalProviderConfigOpts{}
 	for _, v := range o {
 		opts = v(*opts)
@@ -382,7 +382,7 @@ func (p *PublicTestSuite) EqualProviderConfig(expected, actual *LoadedProviderCo
 	return p.Equal(expected.Filename, actual.Filename)
 }
 
-func (p *PublicTestSuite) EqualProviderConfigs(expected, actual []*LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
+func (p *ClientTestSuite) EqualProviderConfigs(expected, actual []*LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
 	if !p.Equal(len(expected), len(actual)) {
 		return false
 	}
@@ -396,6 +396,6 @@ func (p *PublicTestSuite) EqualProviderConfigs(expected, actual []*LoadedProvide
 	return true
 }
 
-func TestPublicTestSuite(t *testing.T) {
-	suite.Run(t, new(PublicTestSuite))
+func TestClientTestSuite(t *testing.T) {
+	suite.Run(t, new(ClientTestSuite))
 }
