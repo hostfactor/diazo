@@ -12,7 +12,7 @@ func ToSetupActions(data *blueprint.BlueprintData, p *providerconfig.ProviderCon
 	acts := make([]*blueprint.SetupAction, 0, len(data.GetSelectedFiles()))
 	volMap := volume.VolumesToMap(p.GetVolumes())
 	for _, selection := range data.GetSelectedFiles() {
-		vol := volMap[selection.GetName()]
+		vol := volMap[selection.GetVolumeName()]
 		if vol == nil {
 			continue
 		}
@@ -28,6 +28,9 @@ func ToSetupActions(data *blueprint.BlueprintData, p *providerconfig.ProviderCon
 func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *providerconfig.VolumeMount) *blueprint.SetupAction {
 	for _, loc := range sel.GetLocations() {
 		if source := loc.GetBucketFile(); source != nil {
+			if source.GetName() == "" {
+				continue
+			}
 			return &blueprint.SetupAction{
 				File: &blueprint.SetupAction_Download{Download: &actions.DownloadFile{
 					From: &actions.DownloadFile_Storage{Storage: &filesystem.BucketFileMatcher{
