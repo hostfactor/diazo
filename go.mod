@@ -9,7 +9,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
-	github.com/hostfactor/api/go v0.0.0-20220313223733-88ac8a6dfa90
+	github.com/hostfactor/api/go v0.0.0-20220323054430-ef774a1e48a3
 	github.com/json-iterator/go v1.1.12
 	github.com/mattn/go-zglob v0.0.3
 	github.com/mholt/archiver/v3 v3.5.1
@@ -53,7 +53,6 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hostfactor/api v0.1.4 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/klauspost/compress v1.14.2 // indirect
