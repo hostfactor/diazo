@@ -572,6 +572,8 @@ github.com/hashicorp/memberlist v0.2.2/go.mod h1:MS2lj3INKhZjWNqd3N0m3J+Jxf3DAOn
 github.com/hashicorp/memberlist v0.3.0/go.mod h1:MS2lj3INKhZjWNqd3N0m3J+Jxf3DAOnAH9VT3Sh9MUE=
 github.com/hashicorp/serf v0.9.5/go.mod h1:UWDWwZeL5cuWDJdl0C6wrvrUwEqtQ4ZKBKKENpqIUyk=
 github.com/hashicorp/serf v0.9.6/go.mod h1:TXZNMjZQijwlDvp+r0b63xZ45H7JmCmgg4gpTwn9UV4=
+github.com/hostfactor/api v0.1.4 h1:JPD2EhJY4UBPYJqu8NGXBtgxVu1nLGryPzXMnE1I1WE=
+github.com/hostfactor/api v0.1.4/go.mod h1:oqUFPqxlaknbCKOELcKxIhupg2ASBfA2rmpWt7/V6wU=
 github.com/hostfactor/api/go v0.0.0-20220310075952-413452bd2119 h1:AMMr0JBc5xG9tDc8vPY2DnLadKSVrT5BiZSyxNpEtjk=
 github.com/hostfactor/api/go v0.0.0-20220310075952-413452bd2119/go.mod h1:uiwS3QD+3anY5zqFbzZVpy14gxulTeNlsIKaJvWfopI=
 github.com/hostfactor/api/go v0.0.0-20220313223733-88ac8a6dfa90 h1:EiWFtO8vobTGGgTtzTf0DXIwU2DuQoIx6NE7AoNi1Mo=
