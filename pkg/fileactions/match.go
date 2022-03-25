@@ -13,13 +13,13 @@ import (
 )
 
 func MatchBucketFiles(cli userfiles.Client, key userfiles.Key, folder string, matcher *filesystem.FileMatcher) ([]*userfiles.FileReader, error) {
-	if matcher.GetName() != "" {
-		r, err := cli.FetchFileReader(path.Join(userfiles.GenFolderKey(folder, key), matcher.GetName()))
+	if matcher.GetExpression().GetName() != "" {
+		r, err := cli.FetchFileReader(path.Join(userfiles.GenFolderKey(folder, key), matcher.GetExpression().GetName()))
 		if err != nil {
 			return nil, err
 		}
 		return []*userfiles.FileReader{r}, nil
-	} else if matcher.GetGlob() != nil || matcher.GetRegex() != "" {
+	} else if matcher.GetExpression().GetGlob() != nil || matcher.GetExpression().GetRegex() != "" {
 		handles, err := cli.ListUserFolder(folder, key)
 		if err != nil {
 			return nil, err
@@ -33,7 +33,7 @@ func MatchBucketFiles(cli userfiles.Client, key userfiles.Key, folder string, ma
 				return nil, err
 			}
 
-			if MatchGlob(v.Name, matcher.GetGlob()) || MatchRegex(v.Name, matcher.GetRegex()) {
+			if MatchGlob(v.Name, matcher.GetExpression().GetGlob()) || MatchRegex(v.Name, matcher.GetExpression().GetRegex()) {
 				out = append(out, r)
 			}
 		}
@@ -44,23 +44,23 @@ func MatchBucketFiles(cli userfiles.Client, key userfiles.Key, folder string, ma
 
 // MatchPath matches a relative or absolute path to a file matcher.
 func MatchPath(p string, matcher *filesystem.FileMatcher) (matched bool) {
-	if matcher.GetRegex() != "" {
-		matched = MatchRegex(p, matcher.GetRegex())
+	if matcher.GetExpression().GetRegex() != "" {
+		matched = MatchRegex(p, matcher.GetExpression().GetRegex())
 		if matched {
 			return
 		}
 	}
 
-	if matcher.GetName() != "" {
+	if matcher.GetExpression().GetName() != "" {
 		_, filename := filepath.Split(p)
-		matched = filename == matcher.GetName()
+		matched = filename == matcher.GetExpression().GetName()
 		if matched {
 			return
 		}
 	}
 
-	if matcher.GetGlob() != nil {
-		matched = MatchGlob(p, matcher.GetGlob())
+	if matcher.GetExpression().GetGlob() != nil {
+		matched = MatchGlob(p, matcher.GetExpression().GetGlob())
 	}
 
 	return
@@ -96,8 +96,8 @@ func MatchDirectoryFile(f fs.FS, matcher *filesystem.DirectoryFileMatcher) (matc
 
 func GetFsMatches(f fs.FS, matcher *filesystem.FileMatcher) []string {
 	matched := make([]string, 0)
-	if matcher.GetGlob() != nil {
-		for _, v := range matcher.GetGlob().GetValue() {
+	if matcher.GetExpression().GetGlob() != nil {
+		for _, v := range matcher.GetExpression().GetGlob().GetValue() {
 			globs, err := fs.Glob(f, strings.TrimSpace(v))
 			if err != nil {
 				continue
@@ -107,19 +107,19 @@ func GetFsMatches(f fs.FS, matcher *filesystem.FileMatcher) []string {
 		}
 	}
 
-	if matcher.GetName() != "" || matcher.GetRegex() != "" {
+	if matcher.GetExpression().GetName() != "" || matcher.GetExpression().GetRegex() != "" {
 		de, _ := fs.ReadDir(f, ".")
 
-		if matcher.GetName() != "" {
+		if matcher.GetExpression().GetName() != "" {
 			for _, v := range de {
-				if v.Name() == matcher.GetName() {
-					matched = append(matched, matcher.GetName())
+				if v.Name() == matcher.GetExpression().GetName() {
+					matched = append(matched, matcher.GetExpression().GetName())
 				}
 			}
 		}
 
-		if matcher.GetRegex() != "" {
-			re, err := regexp.Compile(matcher.GetRegex())
+		if matcher.GetExpression().GetRegex() != "" {
+			re, err := regexp.Compile(matcher.GetExpression().GetRegex())
 			if err == nil {
 				for _, v := range de {
 					if re.MatchString(v.Name()) {

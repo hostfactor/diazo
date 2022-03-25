@@ -34,13 +34,14 @@ volumes:
   - name: derp
     mount:
       path: /path/to/file
-    file_input:
-      accept_props:
-        - .jar
-      help_text: 'A *.zip file of your minecraft world data.'
-      description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
-      destination:
-        bucket_folder: saves
+    source:
+      file_input:
+        accept_props:
+          - .jar
+        help_text: 'A *.zip file of your minecraft world data.'
+        description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
+        destination:
+          bucket_folder: saves
 `),
 		},
 		"settings.json": {
@@ -63,11 +64,11 @@ volumes:
 				{
 					Name:  "derp",
 					Mount: &providerconfig.VolumeMount{Path: "/path/to/file"},
-					Source: &providerconfig.Volume_FileInput{
+					Source: &providerconfig.VolumeSource{
 						FileInput: &providerconfig.FileInputSpec{
 							AcceptProps: []string{".jar"},
 							HelpText:    "A *.zip file of your minecraft world data.",
-							Destination: &providerconfig.FileInputDestinationSpec{Destination: &providerconfig.FileInputDestinationSpec_BucketFolder{BucketFolder: "saves"}},
+							Destination: &providerconfig.FileInputDestination{BucketFolder: "saves"},
 							Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
 						},
 					},
@@ -113,12 +114,14 @@ func (p *ClientTestSuite) TestLoadJson() {
 			"mount": {
 				"path": "/path/to/file"
 			},
-			"file_input": {
-				"accept_props": [".jar"],
-				"help_text": "A *.zip file of your minecraft world data.",
-				"description": "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
-				"destination": {
-					"bucket_folder": "saves"
+			"source": {
+				"file_input": {
+					"accept_props": [".jar"],
+					"help_text": "A *.zip file of your minecraft world data.",
+					"description": "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+					"destination": {
+						"bucket_folder": "saves"
+					}
 				}
 			}
 		}
@@ -146,11 +149,11 @@ func (p *ClientTestSuite) TestLoadJson() {
 				{
 					Name:  "derp",
 					Mount: &providerconfig.VolumeMount{Path: "/path/to/file"},
-					Source: &providerconfig.Volume_FileInput{
+					Source: &providerconfig.VolumeSource{
 						FileInput: &providerconfig.FileInputSpec{
 							AcceptProps: []string{".jar"},
 							HelpText:    "A *.zip file of your minecraft world data.",
-							Destination: &providerconfig.FileInputDestinationSpec{Destination: &providerconfig.FileInputDestinationSpec_BucketFolder{BucketFolder: "saves"}},
+							Destination: &providerconfig.FileInputDestination{BucketFolder: "saves"},
 							Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
 						},
 					},

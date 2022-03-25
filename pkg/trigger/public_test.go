@@ -41,7 +41,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		{
 			GivenFp: "/opt/file/save.zip",
 			Given: &blueprint.FileTriggerAction{
-				Action: &blueprint.FileTriggerAction_Rename{Rename: &actions.RenameFiles{To: "${dir}/${filename}", From: &filesystem.DirectoryFileMatcher{Directory: "${abs}"}}},
+				Rename: &actions.RenameFiles{To: "${dir}/${filename}", From: &filesystem.DirectoryFileMatcher{Directory: "${abs}"}},
 			},
 			Before: func(fp string) {
 				p.FileActions.On("Rename", &actions.RenameFiles{
@@ -55,7 +55,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		{
 			GivenFp: "/opt/file/save.zip",
 			Given: &blueprint.FileTriggerAction{
-				Action: &blueprint.FileTriggerAction_Extract{Extract: &actions.ExtractFiles{To: "${dir}/${filename}", From: &filesystem.DirectoryFileMatcher{Directory: "${abs}"}}},
+				Extract: &actions.ExtractFiles{To: "${dir}/${filename}", From: &filesystem.DirectoryFileMatcher{Directory: "${abs}"}},
 			},
 			Before: func(fp string) {
 				p.FileActions.On("Extract", &actions.ExtractFiles{To: fp, From: &filesystem.DirectoryFileMatcher{Directory: fp}}).Return(nil)
@@ -64,24 +64,22 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		{
 			GivenFp: "/opt/file/save.zip",
 			Given: &blueprint.FileTriggerAction{
-				Action: &blueprint.FileTriggerAction_Upload{
-					Upload: &actions.UploadFile{
-						From: &actions.UploadFile_Path{Path: "${dir}/${filename}"},
-						To:   &filesystem.FileLocation{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{Name: "${name}1.${ext}"}}},
-					},
+				Upload: &actions.UploadFile{
+					From: &actions.UploadFile_Source{Path: "${dir}/${filename}"},
+					To:   &filesystem.FileLocation{BucketFile: &filesystem.BucketFile{Name: "${name}1.${ext}"}},
 				},
 			},
 			Before: func(fp string) {
 				p.FileActions.On("Upload", instanceId, userId, title, &actions.UploadFile{
-					From: &actions.UploadFile_Path{Path: fp},
-					To:   &filesystem.FileLocation{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{Name: "save1.zip"}}},
+					From: &actions.UploadFile_Source{Path: fp},
+					To:   &filesystem.FileLocation{BucketFile: &filesystem.BucketFile{Name: "save1.zip"}},
 				}, fileactions.UploadOpts{}).Return(nil)
 			},
 		},
 		{
 			GivenFp: "/opt/file/save.zip",
 			Given: &blueprint.FileTriggerAction{
-				Action: &blueprint.FileTriggerAction_Download{Download: &actions.DownloadFile{To: "${ext} ${name}"}},
+				Download: &actions.DownloadFile{To: "${ext} ${name}"},
 			},
 			Before: func(fp string) {
 				p.FileActions.On("Download", instanceId, userId, title, &actions.DownloadFile{To: "zip save"}, fileactions.DownloadOpts{}).Return(nil)
@@ -90,16 +88,16 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		{
 			GivenFp: "/opt/file/save.zip",
 			Given: &blueprint.FileTriggerAction{
-				Action: &blueprint.FileTriggerAction_Zip{Zip: &actions.ZipFile{From: &actions.ZipFile_Directory{Directory: "${dir}"}}},
+				Zip: &actions.ZipFile{From: &actions.ZipFile_Source{Directory: "${dir}"}},
 			},
 			Before: func(fp string) {
-				p.FileActions.On("Zip", &actions.ZipFile{From: &actions.ZipFile_Directory{Directory: "/opt/file"}}).Return(nil)
+				p.FileActions.On("Zip", &actions.ZipFile{From: &actions.ZipFile_Source{Directory: "/opt/file"}}).Return(nil)
 			},
 		},
 		{
 			GivenFp: "/opt/file/save.zip",
 			Given: &blueprint.FileTriggerAction{
-				Action: &blueprint.FileTriggerAction_Unzip{Unzip: &actions.UnzipFile{From: "${ext} ${dir}", To: "/my/file/${filename}"}},
+				Unzip: &actions.UnzipFile{From: "${ext} ${dir}", To: "/my/file/${filename}"},
 			},
 			Before: func(fp string) {
 				p.FileActions.On("Unzip", &actions.UnzipFile{From: "zip /opt/file", To: "/my/file/save.zip"}).Return(nil)

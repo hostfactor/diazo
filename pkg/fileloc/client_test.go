@@ -36,12 +36,12 @@ func (p *PublicTestSuite) TestDownloadBucketFile() {
 	tmp := filepath.Join(os.TempDir(), faker.Username())
 	defer os.Remove(tmp)
 
-	given := &filesystem.FileLocation{Loc: &filesystem.FileLocation_BucketFile{
+	given := &filesystem.FileLocation{
 		BucketFile: &filesystem.BucketFile{
 			Name:   faker.Username(),
 			Folder: path.Join(faker.Username(), faker.Username()),
 		},
-	}}
+	}
 	key := path.Join(given.GetBucketFile().GetFolder(), given.GetBucketFile().GetName())
 	toPath := filepath.Join(tmp, "save.zip")
 	content := &userfiles.FileReader{Reader: io.NopCloser(strings.NewReader("content"))}
@@ -70,12 +70,12 @@ func (p *PublicTestSuite) TestDownloadBucketFileFolder() {
 	tmp := filepath.Join(os.TempDir(), faker.Username())
 	defer os.Remove(tmp)
 
-	given := &filesystem.FileLocation{Loc: &filesystem.FileLocation_BucketFile{
+	given := &filesystem.FileLocation{
 		BucketFile: &filesystem.BucketFile{
 			Name:   faker.Username() + ".txt",
 			Folder: path.Join(faker.Username(), faker.Username()),
 		},
-	}}
+	}
 
 	key := path.Join(given.GetBucketFile().GetFolder(), given.GetBucketFile().GetName())
 	content := &userfiles.FileReader{Reader: io.NopCloser(strings.NewReader("content")), Key: key}

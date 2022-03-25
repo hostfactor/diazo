@@ -32,13 +32,14 @@ func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *provide
 				continue
 			}
 			return &blueprint.SetupAction{
-				File: &blueprint.SetupAction_Download{Download: &actions.DownloadFile{
-					From: &actions.DownloadFile_Storage{Storage: &filesystem.BucketFileMatcher{
-						Matches: &filesystem.FileMatcher{File: &filesystem.FileMatcher_Name{Name: source.GetName()}},
+
+				Download: &actions.DownloadFile{
+					Source: &actions.DownloadFile_Source{Storage: &filesystem.BucketFileMatcher{
+						Matches: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Name: source.GetName()}},
 						Folder:  source.GetFolder(),
 					}},
 					To: mount.GetPath(),
-				}},
+				},
 			}
 		}
 	}

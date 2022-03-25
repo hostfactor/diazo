@@ -30,10 +30,10 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 				{
 					VolumeName: "derp",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.zip",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 			},
@@ -46,10 +46,10 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 				{
 					VolumeName: "derp",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.zip",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 			},
@@ -62,10 +62,10 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 				{
 					VolumeName: "derp1",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.zip",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 			},
@@ -73,10 +73,10 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 				{
 					VolumeName: "derp2",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.zip",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 			},
@@ -89,10 +89,10 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 				{
 					VolumeName: "derp",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.txt",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 			},
@@ -100,10 +100,10 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 				{
 					VolumeName: "derp",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.zip",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 			},
@@ -116,19 +116,19 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 				{
 					VolumeName: "derp",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.txt",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 				{
 					VolumeName: "derp1",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.txt",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 			},
@@ -136,10 +136,10 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 				{
 					VolumeName: "derp",
 					Locations: []*filesystem.FileLocation{
-						{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+						{BucketFile: &filesystem.BucketFile{
 							Name:   "save.zip",
 							Folder: "saves",
-						}}},
+						}},
 					},
 				},
 			},

@@ -4,6 +4,8 @@ package mocks
 
 import (
 	blueprint "github.com/hostfactor/api/go/blueprint"
+	filesystem "github.com/hostfactor/api/go/blueprint/filesystem"
+
 	mock "github.com/stretchr/testify/mock"
 
 	provideractions "github.com/hostfactor/diazo/pkg/provideractions"
@@ -53,11 +55,11 @@ func (_m *FileTriggerConditionBuilder) Directories(d ...string) provideractions.
 }
 
 // DoesntMatch provides a mock function with given fields: fm
-func (_m *FileTriggerConditionBuilder) DoesntMatch(fm provideractions.FileMatcher) provideractions.FileTriggerConditionBuilder {
+func (_m *FileTriggerConditionBuilder) DoesntMatch(fm *filesystem.FileMatcher) provideractions.FileTriggerConditionBuilder {
 	ret := _m.Called(fm)
 
 	var r0 provideractions.FileTriggerConditionBuilder
-	if rf, ok := ret.Get(0).(func(provideractions.FileMatcher) provideractions.FileTriggerConditionBuilder); ok {
+	if rf, ok := ret.Get(0).(func(*filesystem.FileMatcher) provideractions.FileTriggerConditionBuilder); ok {
 		r0 = rf(fm)
 	} else {
 		if ret.Get(0) != nil {
@@ -69,11 +71,11 @@ func (_m *FileTriggerConditionBuilder) DoesntMatch(fm provideractions.FileMatche
 }
 
 // Matches provides a mock function with given fields: fm
-func (_m *FileTriggerConditionBuilder) Matches(fm provideractions.FileMatcher) provideractions.FileTriggerConditionBuilder {
+func (_m *FileTriggerConditionBuilder) Matches(fm *filesystem.FileMatcher) provideractions.FileTriggerConditionBuilder {
 	ret := _m.Called(fm)
 
 	var r0 provideractions.FileTriggerConditionBuilder
-	if rf, ok := ret.Get(0).(func(provideractions.FileMatcher) provideractions.FileTriggerConditionBuilder); ok {
+	if rf, ok := ret.Get(0).(func(*filesystem.FileMatcher) provideractions.FileTriggerConditionBuilder); ok {
 		r0 = rf(fm)
 	} else {
 		if ret.Get(0) != nil {

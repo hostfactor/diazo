@@ -4,6 +4,8 @@ package mocks
 
 import (
 	blueprint "github.com/hostfactor/api/go/blueprint"
+	filesystem "github.com/hostfactor/api/go/blueprint/filesystem"
+
 	mock "github.com/stretchr/testify/mock"
 
 	provideractions "github.com/hostfactor/diazo/pkg/provideractions"
@@ -47,11 +49,11 @@ func (_m *SetupPhaseBuilder) DownloadBucketFile(filename string, folder string, 
 }
 
 // ExtractFiles provides a mock function with given fields: fromDirectory, matches, to
-func (_m *SetupPhaseBuilder) ExtractFiles(fromDirectory string, matches provideractions.FileMatcher, to string) provideractions.SetupPhaseBuilder {
+func (_m *SetupPhaseBuilder) ExtractFiles(fromDirectory string, matches *filesystem.FileMatcher, to string) provideractions.SetupPhaseBuilder {
 	ret := _m.Called(fromDirectory, matches, to)
 
 	var r0 provideractions.SetupPhaseBuilder
-	if rf, ok := ret.Get(0).(func(string, provideractions.FileMatcher, string) provideractions.SetupPhaseBuilder); ok {
+	if rf, ok := ret.Get(0).(func(string, *filesystem.FileMatcher, string) provideractions.SetupPhaseBuilder); ok {
 		r0 = rf(fromDirectory, matches, to)
 	} else {
 		if ret.Get(0) != nil {

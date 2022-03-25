@@ -5,7 +5,6 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/blueprint"
 	"github.com/hostfactor/api/go/blueprint/actions"
-	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/diazo/pkg/fileactions"
 	"github.com/hostfactor/diazo/pkg/fileutils"
 	"github.com/sirupsen/logrus"
@@ -105,23 +104,22 @@ func ExecuteFileTriggerAction(fp, instanceId, userId, title string, action *blue
 		logrus.WithField("data", v.String()).Debug("Triggering unzip.")
 		return fileactions.Unzip(v)
 	} else if v := action.GetZip(); v != nil {
-		if p := v.GetPath(); p != "" {
-			v.To = &actions.ZipFile_Path{Path: renderTemplateString(p, templateData)}
+		if p := v.GetTo().GetPath(); p != "" {
+			v.To = &actions.ZipFile_Destination{Path: renderTemplateString(p, templateData)}
 		}
-		if d := v.GetDirectory(); d != "" {
-			v.From = &actions.ZipFile_Directory{Directory: renderTemplateString(d, templateData)}
+		if d := v.GetFrom().GetDirectory(); d != "" {
+			v.From = &actions.ZipFile_Source{Directory: renderTemplateString(d, templateData)}
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering zip.")
 		return fileactions.Zip(v)
 	} else if v := action.GetUpload(); v != nil {
-		if v.GetPath() != "" {
-			v.From = &actions.UploadFile_Path{Path: renderTemplateString(v.GetPath(), templateData)}
+		if v.GetFrom().GetPath() != "" {
+			v.From = &actions.UploadFile_Source{Path: renderTemplateString(v.GetFrom().GetPath(), templateData)}
 		}
 
-		switch typ := v.GetTo().Loc.(type) {
-		case *filesystem.FileLocation_BucketFile:
-			typ.BucketFile.Name = renderTemplateString(typ.BucketFile.Name, templateData)
+		if to := v.GetTo().GetBucketFile(); to != nil {
+			to.Name = renderTemplateString(to.Name, templateData)
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering upload.")

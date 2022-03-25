@@ -89,7 +89,7 @@ func (i *client) Extract(file *actions.ExtractFiles) error {
 }
 
 func (i *client) Download(instanceId, userId, title string, dl *actions.DownloadFile, opts DownloadOpts) error {
-	storage := dl.GetStorage()
+	storage := dl.GetSource().GetStorage()
 	if storage == nil {
 		return nil
 	}
@@ -133,7 +133,7 @@ func (i *client) Download(instanceId, userId, title string, dl *actions.Download
 }
 
 func (i *client) Upload(instanceId, userId, title string, u *actions.UploadFile, opts UploadOpts) error {
-	dir, fn := path.Split(u.GetPath())
+	dir, fn := path.Split(u.GetFrom().GetPath())
 	return i.upload(os.DirFS(dir), fn, userfiles.Key{
 		InstanceId: instanceId,
 		UserId:     userId,
@@ -142,7 +142,7 @@ func (i *client) Upload(instanceId, userId, title string, u *actions.UploadFile,
 }
 
 func (i *client) Zip(z *actions.ZipFile) error {
-	return zipFs(os.DirFS(z.GetDirectory()), ".", z)
+	return zipFs(os.DirFS(z.GetFrom().GetDirectory()), ".", z)
 }
 
 func Rename(r *actions.RenameFiles) error {
@@ -232,15 +232,14 @@ func (i *client) upload(f fs.FS, fromPath string, key userfiles.Key, upload *act
 		_ = fi.Close()
 	}(fi)
 
-	switch typ := upload.GetTo().Loc.(type) {
-	case *filesystem.FileLocation_BucketFile:
-		filename, ext := fileutils.SplitFile(typ.BucketFile.GetName())
+	if v := upload.GetTo().GetBucketFile(); v != nil {
+		filename, ext := fileutils.SplitFile(v.GetName())
 		if ext == "" {
-			ext = filepath.Ext(upload.GetPath())
+			ext = filepath.Ext(upload.GetFrom().GetPath())
 		}
 		fn := filename + ext
 
-		w := i.UserfilesClient.CreateFileWriter(fn, typ.BucketFile.GetFolder(), key)
+		w := i.UserfilesClient.CreateFileWriter(fn, v.GetFolder(), key)
 
 		written, err := io.Copy(w, fi)
 		if err != nil {
@@ -263,7 +262,7 @@ func (i *client) upload(f fs.FS, fromPath string, key userfiles.Key, upload *act
 				BytesWritten: written,
 				Filename:     fn,
 				Key:          key,
-				Folder:       typ.BucketFile.GetFolder(),
+				Folder:       v.GetFolder(),
 			})
 		}
 	}
@@ -276,8 +275,8 @@ func Zip(z *actions.ZipFile) error {
 }
 
 func zipFs(f fs.FS, dir string, z *actions.ZipFile) error {
-	_ = os.MkdirAll(filepath.Dir(z.GetPath()), os.ModePerm)
-	archive, err := os.Create(z.GetPath())
+	_ = os.MkdirAll(filepath.Dir(z.GetTo().GetPath()), os.ModePerm)
+	archive, err := os.Create(z.GetTo().GetPath())
 	if err != nil {
 		return nil
 	}

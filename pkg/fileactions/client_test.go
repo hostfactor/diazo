@@ -45,7 +45,7 @@ func (p *PublicTestSuite) TestExtractValheim() {
 	given := &actions.ExtractFiles{
 		From: &filesystem.DirectoryFileMatcher{
 			Matches: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Regex{
+				Expression: &filesystem.FileMatcher_Expression{
 					Regex: ".+\\.fwl",
 				},
 			},
@@ -91,7 +91,9 @@ func (p *PublicTestSuite) TestRename() {
 	given := &actions.RenameFiles{
 		From: &filesystem.DirectoryFileMatcher{
 			Matches: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Glob{Glob: &filesystem.GlobMatcher{Value: []string{"match.*", "match/match.*"}}},
+				Expression: &filesystem.FileMatcher_Expression{
+					Glob: &filesystem.GlobMatcher{Value: []string{"match.*", "match/match.*"}},
+				},
 			},
 		},
 		To: "derp",
@@ -152,7 +154,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 	tests := []test{
 		{
 			Fs:       fstest.MapFS{},
-			Given:    &filesystem.FileMatcher{File: &filesystem.FileMatcher_Glob{Glob: &filesystem.GlobMatcher{Value: []string{"match.jpg"}}}},
+			Given:    &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"match.jpg"}}}},
 			Expected: []string{},
 		},
 		{
@@ -160,7 +162,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 				"match.jpg":  {Data: []byte("")},
 				"match1.txt": {Data: []byte("")},
 			},
-			Given:    &filesystem.FileMatcher{File: &filesystem.FileMatcher_Glob{Glob: &filesystem.GlobMatcher{Value: []string{"match.*"}}}},
+			Given:    &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"match.*"}}}},
 			Expected: []string{"match.jpg"},
 		},
 		{
@@ -169,7 +171,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 				"match.jpg":        {Data: []byte("")},
 				"match1.txt":       {Data: []byte("")},
 			},
-			Given:    &filesystem.FileMatcher{File: &filesystem.FileMatcher_Name{Name: "match.jpg"}},
+			Given:    &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Name: "match.jpg"}},
 			Expected: []string{"match.jpg"},
 		},
 		{
@@ -178,7 +180,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 				"match.jpg":        {Data: []byte("")},
 				"match1.txt":       {Data: []byte("")},
 			},
-			Given:    &filesystem.FileMatcher{File: &filesystem.FileMatcher_Regex{Regex: ".+\\.jpg"}},
+			Given:    &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Regex: ".+\\.jpg"}},
 			Expected: []string{"match.jpg"},
 		},
 	}
@@ -203,30 +205,30 @@ func (p *PublicTestSuite) TestMatchPath() {
 	tests := []test{
 		{
 			Name:     "a.txt",
-			Matcher:  &filesystem.FileMatcher{File: &filesystem.FileMatcher_Glob{Glob: &filesystem.GlobMatcher{Value: []string{"b.txt", "a.*"}}}},
+			Matcher:  &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"b.txt", "a.*"}}}},
 			Expected: true,
 		},
 		{
 			Name:    "b.txt",
-			Matcher: &filesystem.FileMatcher{File: &filesystem.FileMatcher_Glob{Glob: &filesystem.GlobMatcher{Value: []string{"a.*"}}}},
+			Matcher: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"a.*"}}}},
 		},
 		{
 			Name:     "a.txt",
-			Matcher:  &filesystem.FileMatcher{File: &filesystem.FileMatcher_Regex{Regex: "a.+"}},
+			Matcher:  &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Regex: "a.+"}},
 			Expected: true,
 		},
 		{
 			Name:    "b.txt",
-			Matcher: &filesystem.FileMatcher{File: &filesystem.FileMatcher_Regex{Regex: "a.+"}},
+			Matcher: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Regex: "a.+"}},
 		},
 		{
 			Name:     "a.txt",
-			Matcher:  &filesystem.FileMatcher{File: &filesystem.FileMatcher_Name{Name: "a.txt"}},
+			Matcher:  &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Name: "a.txt"}},
 			Expected: true,
 		},
 		{
 			Name:    "b.txt",
-			Matcher: &filesystem.FileMatcher{File: &filesystem.FileMatcher_Name{}},
+			Matcher: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{}},
 		},
 	}
 
@@ -249,8 +251,8 @@ func (p *PublicTestSuite) TestZip() {
 
 	dest := filepath.Join(os.TempDir(), faker.Username(), "test.zip")
 	given := &actions.ZipFile{
-		From: &actions.ZipFile_Directory{Directory: "."},
-		To:   &actions.ZipFile_Path{Path: dest},
+		From: &actions.ZipFile_Source{Directory: "."},
+		To:   &actions.ZipFile_Destination{Path: dest},
 	}
 
 	// -- When
@@ -284,7 +286,7 @@ func (p *PublicTestSuite) TestMatchDirectoryFile() {
 	}
 
 	matcher := &filesystem.FileMatcher{
-		File: &filesystem.FileMatcher_Regex{Regex: ".+"},
+		Expression: &filesystem.FileMatcher_Expression{Regex: ".+"},
 	}
 
 	cwd := filepath.Dir(testutils.GetCurrentFile())
@@ -340,7 +342,7 @@ func (p *PublicTestSuite) TestDownload() {
 	tests := []test{
 		{
 			Match: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Name{Name: "save.zip"},
+				Expression: &filesystem.FileMatcher_Expression{Name: "save.zip"},
 			},
 			Before: func(d string) {
 				p.UserfilesClient.On("FetchFileReader", path.Join(folderKey, "save.zip")).Return(&userfiles.FileReader{
@@ -362,7 +364,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Name{Name: "save.zip"},
+				Expression: &filesystem.FileMatcher_Expression{Name: "save.zip"},
 			},
 			To: func(d string) string {
 				return filepath.Join(d, "save.txt")
@@ -387,7 +389,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Name{Name: "save.zip"},
+				Expression: &filesystem.FileMatcher_Expression{Name: "save.zip"},
 			},
 			Before: func(d string) {
 				p.UserfilesClient.On("FetchFileReader", path.Join(folderKey, "save.zip")).Return(nil, errors.New("error"))
@@ -402,7 +404,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Regex{Regex: ".+\\.zip"},
+				Expression: &filesystem.FileMatcher_Expression{Regex: ".+\\.zip"},
 			},
 			Before: func(d string) {
 				handles := []*userfiles.FileHandle{
@@ -435,7 +437,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Regex{Regex: ".+\\.zip"},
+				Expression: &filesystem.FileMatcher_Expression{Regex: ".+\\.zip"},
 			},
 			Before: func(d string) {
 				p.UserfilesClient.On("ListUserFolder", "saves", key).Return(make([]*userfiles.FileHandle, 0), nil)
@@ -449,7 +451,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Glob{Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}}},
+				Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}}},
 			},
 			Before: func(d string) {
 				handles := []*userfiles.FileHandle{
@@ -487,7 +489,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				File: &filesystem.FileMatcher_Glob{Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}}},
+				Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}}},
 			},
 			Before: func(d string) {
 				p.UserfilesClient.On("ListUserFolder", "saves", key).Return(make([]*userfiles.FileHandle, 0), nil)
@@ -506,7 +508,7 @@ func (p *PublicTestSuite) TestDownload() {
 	for i, v := range tests {
 		dir := filepath.Join(os.TempDir(), faker.Username())
 		given := &actions.DownloadFile{
-			From: &actions.DownloadFile_Storage{
+			Source: &actions.DownloadFile_Source{
 				Storage: &filesystem.BucketFileMatcher{
 					Matches: v.Match,
 					Folder:  "saves",
@@ -556,11 +558,11 @@ func (p *PublicTestSuite) TestUpload() {
 				"opt/a.txt": {Data: []byte("text")},
 			},
 			Given: &actions.UploadFile{
-				From: &actions.UploadFile_Path{Path: "opt/a.txt"},
-				To: &filesystem.FileLocation{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+				From: &actions.UploadFile_Source{Path: "opt/a.txt"},
+				To: &filesystem.FileLocation{BucketFile: &filesystem.BucketFile{
 					Name:   "save.txt",
 					Folder: "saves",
-				}}},
+				}},
 			},
 			Before: func(b *testutils.ByteBuffer) {
 				p.UserfilesClient.On("CreateFileWriter", "save.txt", "saves", key).Return(b, nil)
@@ -574,11 +576,11 @@ func (p *PublicTestSuite) TestUpload() {
 				"opt/a.txt": {Data: []byte("text")},
 			},
 			Given: &actions.UploadFile{
-				From: &actions.UploadFile_Path{Path: "opt/a.txt"},
-				To: &filesystem.FileLocation{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
+				From: &actions.UploadFile_Source{Path: "opt/a.txt"},
+				To: &filesystem.FileLocation{BucketFile: &filesystem.BucketFile{
 					Name:   "save",
 					Folder: "saves",
-				}}},
+				}},
 			},
 			Before: func(b *testutils.ByteBuffer) {
 				p.UserfilesClient.On("CreateFileWriter", "save.txt", "saves", key).Return(b)
@@ -596,7 +598,7 @@ func (p *PublicTestSuite) TestUpload() {
 			Buffer: bytes.Buffer{},
 		}
 		v.Before(b)
-		err := p.Svc.upload(v.Fs, v.Given.GetPath(), key, v.Given, UploadOpts{})
+		err := p.Svc.upload(v.Fs, v.Given.GetFrom().GetPath(), key, v.Given, UploadOpts{})
 		v.After(b)
 		p.Equal(err, v.ExpectedError, "test %d", i)
 		p.UserfilesClient.AssertExpectations(p.T())

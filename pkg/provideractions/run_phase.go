@@ -95,10 +95,10 @@ func (r *runPhaseBuilder) Build() *blueprint.RunPhase {
 
 type FileTriggerConditionBuilder interface {
 	// Matches resolves to true if the file change matches the specified matcher.
-	Matches(fm FileMatcher) FileTriggerConditionBuilder
+	Matches(fm *filesystem.FileMatcher) FileTriggerConditionBuilder
 
 	// DoesntMatch resolves to true if the file change does not match the specified matcher.
-	DoesntMatch(fm FileMatcher) FileTriggerConditionBuilder
+	DoesntMatch(fm *filesystem.FileMatcher) FileTriggerConditionBuilder
 
 	// Op resolves to true if one of the specified blueprint.FileChangeOp match.
 	Op(op ...blueprint.FileChangeOp) FileTriggerConditionBuilder
@@ -118,13 +118,13 @@ type fileTriggerConditionBuilder struct {
 	FileTriggerCondition *blueprint.FileTriggerCondition
 }
 
-func (f *fileTriggerConditionBuilder) Matches(fm FileMatcher) FileTriggerConditionBuilder {
-	f.FileTriggerCondition.Matches = fm.FileMatcher()
+func (f *fileTriggerConditionBuilder) Matches(fm *filesystem.FileMatcher) FileTriggerConditionBuilder {
+	f.FileTriggerCondition.Matches = fm
 	return f
 }
 
-func (f *fileTriggerConditionBuilder) DoesntMatch(fm FileMatcher) FileTriggerConditionBuilder {
-	f.FileTriggerCondition.DoesntMatch = fm.FileMatcher()
+func (f *fileTriggerConditionBuilder) DoesntMatch(fm *filesystem.FileMatcher) FileTriggerConditionBuilder {
+	f.FileTriggerCondition.DoesntMatch = fm
 	return f
 }
 
@@ -176,14 +176,12 @@ type fileTriggerActionBuilder struct {
 
 func (f *fileTriggerActionBuilder) Upload(from, filename string, folder string) FileTriggerActionBuilder {
 	f.Action = &blueprint.FileTriggerAction{
-		Action: &blueprint.FileTriggerAction_Upload{
-			Upload: &actions.UploadFile{
-				From: &actions.UploadFile_Path{Path: from},
-				To: &filesystem.FileLocation{Loc: &filesystem.FileLocation_BucketFile{BucketFile: &filesystem.BucketFile{
-					Name:   filename,
-					Folder: folder,
-				}}},
-			},
+		Upload: &actions.UploadFile{
+			From: &actions.UploadFile_Source{Path: from},
+			To: &filesystem.FileLocation{BucketFile: &filesystem.BucketFile{
+				Name:   filename,
+				Folder: folder,
+			}},
 		},
 	}
 
@@ -192,11 +190,9 @@ func (f *fileTriggerActionBuilder) Upload(from, filename string, folder string) 
 
 func (f *fileTriggerActionBuilder) ZipFolder(dir, to string) FileTriggerActionBuilder {
 	f.Action = &blueprint.FileTriggerAction{
-		Action: &blueprint.FileTriggerAction_Zip{
-			Zip: &actions.ZipFile{
-				From: &actions.ZipFile_Directory{Directory: dir},
-				To:   &actions.ZipFile_Path{Path: to},
-			},
+		Zip: &actions.ZipFile{
+			From: &actions.ZipFile_Source{Directory: dir},
+			To:   &actions.ZipFile_Destination{Path: to},
 		},
 	}
 	return f

@@ -15,7 +15,7 @@ type SetupPhaseBuilder interface {
 	UnzipFile(from, to string) SetupPhaseBuilder
 
 	// ExtractFiles moves all sibling files of a matched file to an absolute path of a directory.
-	ExtractFiles(fromDirectory string, matches FileMatcher, to string) SetupPhaseBuilder
+	ExtractFiles(fromDirectory string, matches *filesystem.FileMatcher, to string) SetupPhaseBuilder
 
 	Gid(i int) SetupPhaseBuilder
 
@@ -46,38 +46,36 @@ func (s *setupPhaseBuilder) Uid(i int) SetupPhaseBuilder {
 
 func (s *setupPhaseBuilder) DownloadBucketFile(filename, folder, to string) SetupPhaseBuilder {
 	s.SetupPhase.Actions = append(s.SetupPhase.Actions, &blueprint.SetupAction{
-		File: &blueprint.SetupAction_Download{Download: &actions.DownloadFile{
-			From: &actions.DownloadFile_Storage{Storage: &filesystem.BucketFileMatcher{
-				Matches: &filesystem.FileMatcher{File: &filesystem.FileMatcher_Name{Name: filename}},
+		Download: &actions.DownloadFile{
+			Source: &actions.DownloadFile_Source{Storage: &filesystem.BucketFileMatcher{
+				Matches: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Name: filename}},
 				Folder:  folder,
 			}},
 			To: to,
-		}},
+		},
 	})
 	return s
 }
 
 func (s *setupPhaseBuilder) UnzipFile(from, to string) SetupPhaseBuilder {
 	s.SetupPhase.Actions = append(s.SetupPhase.Actions, &blueprint.SetupAction{
-		File: &blueprint.SetupAction_Unzip{Unzip: &actions.UnzipFile{
+		Unzip: &actions.UnzipFile{
 			From: from,
 			To:   to,
-		}},
+		},
 	})
 
 	return s
 }
 
-func (s *setupPhaseBuilder) ExtractFiles(fromDirectory string, matches FileMatcher, to string) SetupPhaseBuilder {
+func (s *setupPhaseBuilder) ExtractFiles(fromDirectory string, matches *filesystem.FileMatcher, to string) SetupPhaseBuilder {
 	s.SetupPhase.Actions = append(s.SetupPhase.Actions, &blueprint.SetupAction{
-		File: &blueprint.SetupAction_Extract{
-			Extract: &actions.ExtractFiles{
-				From: &filesystem.DirectoryFileMatcher{
-					Directory: fromDirectory,
-					Matches:   matches.FileMatcher(),
-				},
-				To: to,
+		Extract: &actions.ExtractFiles{
+			From: &filesystem.DirectoryFileMatcher{
+				Directory: fromDirectory,
+				Matches:   matches,
 			},
+			To: to,
 		},
 	})
 
