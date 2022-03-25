@@ -35,7 +35,7 @@ func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *provide
 
 				Download: &actions.DownloadFile{
 					Source: &actions.DownloadFile_Source{Storage: &filesystem.BucketFileMatcher{
-						Matches: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Name: source.GetName()}},
+						Matches: &filesystem.FileMatcher{Name: source.GetName()},
 						Folder:  source.GetFolder(),
 					}},
 					To: mount.GetPath(),

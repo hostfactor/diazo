@@ -48,7 +48,7 @@ func (s *setupPhaseBuilder) DownloadBucketFile(filename, folder, to string) Setu
 	s.SetupPhase.Actions = append(s.SetupPhase.Actions, &blueprint.SetupAction{
 		Download: &actions.DownloadFile{
 			Source: &actions.DownloadFile_Source{Storage: &filesystem.BucketFileMatcher{
-				Matches: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Name: filename}},
+				Matches: &filesystem.FileMatcher{Name: filename},
 				Folder:  folder,
 			}},
 			To: to,

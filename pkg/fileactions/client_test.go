@@ -45,9 +45,7 @@ func (p *PublicTestSuite) TestExtractValheim() {
 	given := &actions.ExtractFiles{
 		From: &filesystem.DirectoryFileMatcher{
 			Matches: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{
-					Regex: ".+\\.fwl",
-				},
+				Regex: ".+\\.fwl",
 			},
 		},
 		To: to,
@@ -91,9 +89,7 @@ func (p *PublicTestSuite) TestRename() {
 	given := &actions.RenameFiles{
 		From: &filesystem.DirectoryFileMatcher{
 			Matches: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{
-					Glob: &filesystem.GlobMatcher{Value: []string{"match.*", "match/match.*"}},
-				},
+				Glob: &filesystem.GlobMatcher{Value: []string{"match.*", "match/match.*"}},
 			},
 		},
 		To: "derp",
@@ -154,7 +150,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 	tests := []test{
 		{
 			Fs:       fstest.MapFS{},
-			Given:    &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"match.jpg"}}}},
+			Given:    &filesystem.FileMatcher{Glob: &filesystem.GlobMatcher{Value: []string{"match.jpg"}}},
 			Expected: []string{},
 		},
 		{
@@ -162,7 +158,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 				"match.jpg":  {Data: []byte("")},
 				"match1.txt": {Data: []byte("")},
 			},
-			Given:    &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"match.*"}}}},
+			Given:    &filesystem.FileMatcher{Glob: &filesystem.GlobMatcher{Value: []string{"match.*"}}},
 			Expected: []string{"match.jpg"},
 		},
 		{
@@ -171,7 +167,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 				"match.jpg":        {Data: []byte("")},
 				"match1.txt":       {Data: []byte("")},
 			},
-			Given:    &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Name: "match.jpg"}},
+			Given:    &filesystem.FileMatcher{Name: "match.jpg"},
 			Expected: []string{"match.jpg"},
 		},
 		{
@@ -180,7 +176,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 				"match.jpg":        {Data: []byte("")},
 				"match1.txt":       {Data: []byte("")},
 			},
-			Given:    &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Regex: ".+\\.jpg"}},
+			Given:    &filesystem.FileMatcher{Regex: ".+\\.jpg"},
 			Expected: []string{"match.jpg"},
 		},
 	}
@@ -205,30 +201,30 @@ func (p *PublicTestSuite) TestMatchPath() {
 	tests := []test{
 		{
 			Name:     "a.txt",
-			Matcher:  &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"b.txt", "a.*"}}}},
+			Matcher:  &filesystem.FileMatcher{Glob: &filesystem.GlobMatcher{Value: []string{"b.txt", "a.*"}}},
 			Expected: true,
 		},
 		{
 			Name:    "b.txt",
-			Matcher: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"a.*"}}}},
+			Matcher: &filesystem.FileMatcher{Glob: &filesystem.GlobMatcher{Value: []string{"a.*"}}},
 		},
 		{
 			Name:     "a.txt",
-			Matcher:  &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Regex: "a.+"}},
+			Matcher:  &filesystem.FileMatcher{Regex: "a.+"},
 			Expected: true,
 		},
 		{
 			Name:    "b.txt",
-			Matcher: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Regex: "a.+"}},
+			Matcher: &filesystem.FileMatcher{Regex: "a.+"},
 		},
 		{
 			Name:     "a.txt",
-			Matcher:  &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{Name: "a.txt"}},
+			Matcher:  &filesystem.FileMatcher{Name: "a.txt"},
 			Expected: true,
 		},
 		{
 			Name:    "b.txt",
-			Matcher: &filesystem.FileMatcher{Expression: &filesystem.FileMatcher_Expression{}},
+			Matcher: &filesystem.FileMatcher{},
 		},
 	}
 
@@ -286,7 +282,7 @@ func (p *PublicTestSuite) TestMatchDirectoryFile() {
 	}
 
 	matcher := &filesystem.FileMatcher{
-		Expression: &filesystem.FileMatcher_Expression{Regex: ".+"},
+		Regex: ".+",
 	}
 
 	cwd := filepath.Dir(testutils.GetCurrentFile())
@@ -342,7 +338,7 @@ func (p *PublicTestSuite) TestDownload() {
 	tests := []test{
 		{
 			Match: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{Name: "save.zip"},
+				Name: "save.zip",
 			},
 			Before: func(d string) {
 				p.UserfilesClient.On("FetchFileReader", path.Join(folderKey, "save.zip")).Return(&userfiles.FileReader{
@@ -364,7 +360,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{Name: "save.zip"},
+				Name: "save.zip",
 			},
 			To: func(d string) string {
 				return filepath.Join(d, "save.txt")
@@ -389,7 +385,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{Name: "save.zip"},
+				Name: "save.zip",
 			},
 			Before: func(d string) {
 				p.UserfilesClient.On("FetchFileReader", path.Join(folderKey, "save.zip")).Return(nil, errors.New("error"))
@@ -404,7 +400,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{Regex: ".+\\.zip"},
+				Regex: ".+\\.zip",
 			},
 			Before: func(d string) {
 				handles := []*userfiles.FileHandle{
@@ -437,7 +433,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{Regex: ".+\\.zip"},
+				Regex: ".+\\.zip",
 			},
 			Before: func(d string) {
 				p.UserfilesClient.On("ListUserFolder", "saves", key).Return(make([]*userfiles.FileHandle, 0), nil)
@@ -451,7 +447,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}}},
+				Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}},
 			},
 			Before: func(d string) {
 				handles := []*userfiles.FileHandle{
@@ -489,7 +485,7 @@ func (p *PublicTestSuite) TestDownload() {
 		},
 		{
 			Match: &filesystem.FileMatcher{
-				Expression: &filesystem.FileMatcher_Expression{Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}}},
+				Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}},
 			},
 			Before: func(d string) {
 				p.UserfilesClient.On("ListUserFolder", "saves", key).Return(make([]*userfiles.FileHandle, 0), nil)
