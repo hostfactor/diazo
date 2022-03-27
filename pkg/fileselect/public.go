@@ -63,3 +63,17 @@ func GetLocationFilename(loc *filesystem.FileLocation) string {
 
 	return ""
 }
+
+func MapByVolumeName(selectedFiles []*filesystem.FileSelection) map[string][]*filesystem.FileSelection {
+	selectedFilesByVolName := map[string][]*filesystem.FileSelection{}
+	for idx, v := range selectedFiles {
+		val := selectedFilesByVolName[v.VolumeName]
+		if len(val) == 0 {
+			val = []*filesystem.FileSelection{}
+		}
+		val = append(val, selectedFiles[idx])
+		selectedFilesByVolName[v.VolumeName] = val
+	}
+
+	return selectedFilesByVolName
+}
