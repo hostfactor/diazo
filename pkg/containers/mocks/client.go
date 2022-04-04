@@ -26,13 +26,13 @@ func (_m *Client) CopyImage(src containers.ImageURL, dst containers.ImageURL) er
 	return r0
 }
 
-// GetRepositoryTags provides a mock function with given fields: i
-func (_m *Client) GetRepositoryTags(i containers.ImageURL) ([]string, error) {
-	ret := _m.Called(i)
+// GetRepositoryTags provides a mock function with given fields: i, opts
+func (_m *Client) GetRepositoryTags(i containers.ImageURL, opts containers.GetRepositoryTagsOpts) ([]string, error) {
+	ret := _m.Called(i, opts)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func(containers.ImageURL) []string); ok {
-		r0 = rf(i)
+	if rf, ok := ret.Get(0).(func(containers.ImageURL, containers.GetRepositoryTagsOpts) []string); ok {
+		r0 = rf(i, opts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
@@ -40,8 +40,8 @@ func (_m *Client) GetRepositoryTags(i containers.ImageURL) ([]string, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(containers.ImageURL) error); ok {
-		r1 = rf(i)
+	if rf, ok := ret.Get(1).(func(containers.ImageURL, containers.GetRepositoryTagsOpts) error); ok {
+		r1 = rf(i, opts)
 	} else {
 		r1 = ret.Error(1)
 	}
