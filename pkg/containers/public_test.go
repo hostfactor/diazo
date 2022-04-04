@@ -2,6 +2,7 @@ package containers
 
 import (
 	"github.com/stretchr/testify/suite"
+	"regexp"
 	"testing"
 )
 
@@ -24,10 +25,11 @@ func (p *PublicTestSuite) TestGetRepositoryTags() {
 	// -- Given
 	//
 	given := DockerImageUrl("lloesche/valheim-server")
+	opts := GetRepositoryTagsOpts{}
 
 	// -- When
 	//
-	tags, err := p.Service.GetRepositoryTags(given)
+	tags, err := p.Service.GetRepositoryTags(given, opts)
 
 	// -- Then
 	//
@@ -36,14 +38,32 @@ func (p *PublicTestSuite) TestGetRepositoryTags() {
 	}
 }
 
+func (p *PublicTestSuite) TestGetRepositoryTagsSingularName() {
+	// -- Given
+	//
+	given := DockerImageUrl("nginx")
+	opts := GetRepositoryTagsOpts{Regexp: regexp.MustCompile("^1.21.6$")}
+
+	// -- When
+	//
+	tags, err := p.Service.GetRepositoryTags(given, opts)
+
+	// -- Then
+	//
+	if p.NoError(err) {
+		p.Len(tags, 1)
+	}
+}
+
 func (p *PublicTestSuite) TestGetRepositoryTagsDoesntExist() {
 	// -- Given
 	//
 	given := DockerImageUrl("qwerasdzxc")
+	opts := GetRepositoryTagsOpts{}
 
 	// -- When
 	//
-	tags, err := p.Service.GetRepositoryTags(given)
+	tags, err := p.Service.GetRepositoryTags(given, opts)
 
 	// -- Then
 	//
