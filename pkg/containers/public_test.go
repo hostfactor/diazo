@@ -24,7 +24,7 @@ func (p *PublicTestSuite) BeforeTest(_, _ string) {
 func (p *PublicTestSuite) TestGetRepositoryTags() {
 	// -- Given
 	//
-	given := DockerImageUrl("lloesche/valheim-server")
+	given, _ := ParseImageURL("lloesche/valheim-server")
 	opts := GetRepositoryTagsOpts{}
 
 	// -- When
@@ -41,7 +41,7 @@ func (p *PublicTestSuite) TestGetRepositoryTags() {
 func (p *PublicTestSuite) TestGetRepositoryTagsSingularName() {
 	// -- Given
 	//
-	given := DockerImageUrl("nginx")
+	given, _ := ParseImageURL("nginx")
 	opts := GetRepositoryTagsOpts{Regexp: regexp.MustCompile("^1.21.6$")}
 
 	// -- When
@@ -58,7 +58,7 @@ func (p *PublicTestSuite) TestGetRepositoryTagsSingularName() {
 func (p *PublicTestSuite) TestGetRepositoryTagsDoesntExist() {
 	// -- Given
 	//
-	given := DockerImageUrl("qwerasdzxc")
+	given, _ := ParseImageURL("qwerasdzxc")
 	opts := GetRepositoryTagsOpts{}
 
 	// -- When

@@ -25,10 +25,6 @@ func (p *ClientTestSuite) TestLoad() {
 		"provider.yaml": {
 			Data: []byte(`
 title: minecraft
-version_sync:
-  source:
-    container_registry: 
-      matches_tag: '^(latest|java8|java9|java11|java15)$'
 image: itzg/minecraft-server
 volumes:
   - name: derp
@@ -52,13 +48,6 @@ volumes:
 	expected := &LoadedProviderConfig{
 		Config: &providerconfig.ProviderConfig{
 			Title: "minecraft",
-			VersionSync: &providerconfig.VersionSyncSpec{
-				Source: &providerconfig.RemoteVersionSource{
-					ContainerRegistry: &providerconfig.ContainerRegistryVersionSource{
-						MatchesTag: "^(latest|java8|java9|java11|java15)$",
-					},
-				},
-			},
 			Image: "itzg/minecraft-server",
 			Volumes: []*providerconfig.Volume{
 				{
@@ -100,13 +89,6 @@ func (p *ClientTestSuite) TestLoadJson() {
 			Data: []byte(`
 {
   "title": "minecraft",
-	"version_sync": {
-		"source": {
-			"container_registry": {
-				"matches_tag": "^(latest|java8|java9|java11|java15)$"
-			}
-		}
-	},
 	"image": "itzg/minecraft-server",
 	"volumes": [
 		{
@@ -137,13 +119,6 @@ func (p *ClientTestSuite) TestLoadJson() {
 	expected := &LoadedProviderConfig{
 		Config: &providerconfig.ProviderConfig{
 			Title: "minecraft",
-			VersionSync: &providerconfig.VersionSyncSpec{
-				Source: &providerconfig.RemoteVersionSource{
-					ContainerRegistry: &providerconfig.ContainerRegistryVersionSource{
-						MatchesTag: "^(latest|java8|java9|java11|java15)$",
-					},
-				},
-			},
 			Image: "itzg/minecraft-server",
 			Volumes: []*providerconfig.Volume{
 				{
