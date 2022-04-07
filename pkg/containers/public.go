@@ -8,6 +8,7 @@ import (
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
+	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"regexp"
@@ -101,6 +102,23 @@ func (c *client) Login(username, password, registry string) error {
 	}
 
 	return nil
+}
+
+func ListTags(imageUrl ImageURL) ([]string, error) {
+	ref, err := parseImageRef(imageUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+
+	tags, err := docker.GetRepositoryTags(ctx, defaultSysCtx(), ref)
+	if err != nil {
+		logrus.WithError(err).WithField("ref", imageUrl).Error("Failed to list tags.")
+		return nil, err
+	}
+
+	return tags, nil
 }
 
 func (c *client) CopyImage(src, dst ImageURL) error {
