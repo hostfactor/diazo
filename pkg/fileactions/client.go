@@ -24,6 +24,7 @@ type Client interface {
 	Download(instanceId, userId, title string, dl *actions.DownloadFile, opts DownloadOpts) error
 	Upload(instanceId, userId, title string, u *actions.UploadFile, opts UploadOpts) error
 	Zip(z *actions.ZipFile) error
+	MoveFile(a *actions.MoveFile) error
 }
 
 type OnError func(err error)
@@ -67,8 +68,14 @@ func New(c userfiles.Client) Client {
 	return &client{UserfilesClient: c}
 }
 
+func (i *client) MoveFile(a *actions.MoveFile) error {
+	dir, f := filepath.Split(a.GetFrom())
+	return fileutils.MoveFile(os.DirFS(dir), f, a.GetTo())
+}
+
 func (i *client) Rename(r *actions.RenameFiles) error {
-	return Rename(r)
+	f := os.DirFS(r.GetFrom().GetDirectory())
+	return rename(f, r.GetFrom().GetDirectory(), r)
 }
 
 func (i *client) Unzip(file *actions.UnzipFile) error {
@@ -147,19 +154,6 @@ func (i *client) Zip(z *actions.ZipFile) error {
 
 func Rename(r *actions.RenameFiles) error {
 	return Default.Rename(r)
-}
-
-func rename(src fs.FS, destDir string, r *actions.RenameFiles) error {
-	matches := GetFsMatches(src, r.GetFrom().GetMatches())
-	for _, v := range matches {
-		ext := filepath.Ext(v)
-		d, _ := filepath.Split(v)
-		to := filepath.Clean(filepath.Join(destDir, d, r.GetTo()+ext))
-		if err := fileutils.Rename(src, v, to); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func Unzip(file *actions.UnzipFile) error {
@@ -320,5 +314,18 @@ func zipFs(f fs.FS, dir string, z *actions.ZipFile) error {
 		return err
 	}
 
+	return nil
+}
+
+func rename(src fs.FS, destDir string, r *actions.RenameFiles) error {
+	matches := GetFsMatches(src, r.GetFrom().GetMatches())
+	for _, v := range matches {
+		ext := filepath.Ext(v)
+		d, _ := filepath.Split(v)
+		to := filepath.Clean(filepath.Join(destDir, d, r.GetTo()+ext))
+		if err := fileutils.Rename(src, v, to); err != nil {
+			return err
+		}
+	}
 	return nil
 }

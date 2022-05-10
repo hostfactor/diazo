@@ -17,6 +17,19 @@ type SetupPhaseBuilder interface {
 	// ExtractFiles moves all sibling files of a matched file to an absolute path of a directory.
 	ExtractFiles(fromDirectory string, matches *filesystem.FileMatcher, to string) SetupPhaseBuilder
 
+	// Rename renames all matched file(s) in-place.
+	//
+	// srcDir is the absolute path to a directory.
+	//
+	// matches will source all files within srcDir to be renamed.
+	//
+	// dstFilename is the name of the file that all matches are renamed to. This should be the filename minus the
+	// extension e.g. to rename a matching "save.zip" to "autosave.zip" this field would be "autosave"
+	Rename(srcDir string, matches *filesystem.FileMatcher, dstFilename string) SetupPhaseBuilder
+
+	// MoveFile moves a singular file. Both src and dst must be absolute paths to files.
+	MoveFile(src, dst string) SetupPhaseBuilder
+
 	Gid(i int) SetupPhaseBuilder
 
 	Uid(i int) SetupPhaseBuilder
@@ -32,6 +45,31 @@ func NewSetupPhaseBuilder() SetupPhaseBuilder {
 
 type setupPhaseBuilder struct {
 	SetupPhase *blueprint.SetupPhase
+}
+
+func (s *setupPhaseBuilder) MoveFile(src, dst string) SetupPhaseBuilder {
+	s.SetupPhase.Actions = append(s.SetupPhase.Actions, &blueprint.SetupAction{
+		Move: &actions.MoveFile{
+			From: src,
+			To:   dst,
+		},
+	})
+
+	return s
+}
+
+func (s *setupPhaseBuilder) Rename(srcDir string, matches *filesystem.FileMatcher, dstFilename string) SetupPhaseBuilder {
+	s.SetupPhase.Actions = append(s.SetupPhase.Actions, &blueprint.SetupAction{
+		Rename: &actions.RenameFiles{
+			From: &filesystem.DirectoryFileMatcher{
+				Directory: srcDir,
+				Matches:   matches,
+			},
+			To: dstFilename,
+		},
+	})
+
+	return s
 }
 
 func (s *setupPhaseBuilder) Gid(i int) SetupPhaseBuilder {
