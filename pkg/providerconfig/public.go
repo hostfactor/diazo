@@ -26,6 +26,11 @@ func ToSetupActions(data *blueprint.BlueprintData, p *providerconfig.ProviderCon
 }
 
 func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *providerconfig.VolumeMount) *blueprint.SetupAction {
+	// there's nothing to mount
+	if mount == nil {
+		return nil
+	}
+
 	for _, loc := range sel.GetLocations() {
 		if source := loc.GetBucketFile(); source != nil {
 			if source.GetName() == "" {
