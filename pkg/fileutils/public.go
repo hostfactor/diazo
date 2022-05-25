@@ -14,6 +14,8 @@ import (
 
 var ErrWalkExit = fmt.Errorf("exit walk")
 
+var IsTest = false
+
 // SplitFile takes a file f and splits it into the name and extensions e.g. save.zip returns (save, .zip).
 func SplitFile(f string) (filename, ext string) {
 	if f == "" {
@@ -32,6 +34,8 @@ func MoveFile(f fs.FS, src, dst string) error {
 	}
 	defer in.Close()
 
+	_ = os.MkdirAll(filepath.Dir(dst), os.ModePerm)
+
 	out, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("failed to open dest file: %s", err)
@@ -48,17 +52,21 @@ func MoveFile(f fs.FS, src, dst string) error {
 		return fmt.Errorf("sync error: %s", err)
 	}
 
-	si, err := os.Stat(src)
+	si, err := fs.Stat(f, src)
 	if err != nil {
 		return fmt.Errorf("stat error: %s", err)
 	}
 
-	err = os.Chmod(dst, si.Mode())
+	mode := si.Mode()
+	if mode == 0 {
+		mode = os.ModePerm
+	}
+	err = os.Chmod(dst, mode)
 	if err != nil {
 		return fmt.Errorf("chmod error: %s", err)
 	}
 
-	err = os.Remove(src)
+	err = Remove(f, src)
 	if err != nil {
 		return fmt.Errorf("failed removing original file: %s", err)
 	}
@@ -81,7 +89,10 @@ func FsPath(f fs.FS) string {
 	if f == nil {
 		return ""
 	}
-	return extractFsPaths(reflect.ValueOf(f))
+
+	_, fps := extractFsPaths(reflect.ValueOf(f))
+
+	return filepath.Clean(strings.Join(fps, string(filepath.Separator)))
 }
 
 func FindFilenames(f fs.FS) ([]string, error) {
@@ -169,6 +180,9 @@ func Rename(src fs.FS, from, to string) error {
 }
 
 func Remove(src fs.FS, rel string) error {
+	if IsTest {
+		return nil
+	}
 	switch t := src.(type) {
 	case fstest.MapFS:
 		delete(t, rel)
@@ -210,31 +224,52 @@ func InspectZipFileFs(f fs.FS, fp string) (*zip.Reader, error) {
 	return read, nil
 }
 
-func extractFsPaths(v reflect.Value) string {
+func extractFsPaths(v reflect.Value) (fs.FS, []string) {
 	sl := make([]string, 0)
-	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface || v.Kind() == reflect.Struct {
-		for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
-			v = v.Elem()
-		}
-		if v.Kind() == reflect.Struct {
-			dirField := v.FieldByName("dir")
-			if !dirField.IsZero() {
-				sl = append(sl, dirField.String())
-			}
-			v = v.FieldByName("fsys")
-		} else {
-			break
+	var f fs.FS
+	if v.CanInterface() {
+		i := v.Interface()
+		if i != nil {
+			f, _ = v.Interface().(fs.FS)
 		}
 	}
 
-	if v.Kind() == reflect.String {
+	if f != nil {
+		v, ok := f.(fstest.MapFS)
+		if ok {
+			return v, sl
+		}
+	}
+
+	for !v.IsZero() && (v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface) {
+		v = v.Elem()
+	}
+
+	switch v.Kind() {
+	case reflect.Struct:
+		dirField := v.FieldByName("dir")
+		if !dirField.IsValid() {
+			return f, sl
+		}
+		if !dirField.IsZero() {
+			sl = append(sl, dirField.String())
+		}
+		fp, s := extractFsPaths(v.FieldByName("fsys"))
+		if fp != nil {
+			f = fp
+		}
+		sl = append(sl, s...)
+	case reflect.String:
 		sl = append(sl, v.String())
 	}
 
-	builder := strings.Builder{}
-	for j := len(sl) - 1; j >= 0; j-- {
-		builder.WriteString(sl[j])
-		builder.WriteRune(filepath.Separator)
+	reverseSlice(sl)
+
+	return f, sl
+}
+
+func reverseSlice(input []string) {
+	for i, j := 0, len(input)-1; i < j; i, j = i+1, j-1 {
+		input[i], input[j] = input[j], input[i]
 	}
-	return filepath.Clean(builder.String())
 }

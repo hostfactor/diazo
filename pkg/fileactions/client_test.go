@@ -21,20 +21,21 @@ import (
 	"testing/fstest"
 )
 
-type PublicTestSuite struct {
+type ClientTestSuite struct {
 	suite.Suite
 
 	UserfilesClient *mocks.Client
 	Svc             *client
 }
 
-func (p *PublicTestSuite) BeforeTest(_, _ string) {
+func (p *ClientTestSuite) BeforeTest(_, _ string) {
 	p.UserfilesClient = new(mocks.Client)
 	p.Svc = &client{UserfilesClient: p.UserfilesClient}
+	fileutils.IsTest = true
 	Default = p.Svc
 }
 
-func (p *PublicTestSuite) TestExtractValheim() {
+func (p *ClientTestSuite) TestExtractValheim() {
 	// -- Given
 	//
 	to := filepath.Join(os.TempDir(), faker.Username())
@@ -71,7 +72,7 @@ func (p *PublicTestSuite) TestExtractValheim() {
 	}
 }
 
-func (p *PublicTestSuite) TestRename() {
+func (p *ClientTestSuite) TestRename() {
 	// -- Given
 	//
 	to := filepath.Join(os.TempDir(), faker.Username())
@@ -110,7 +111,7 @@ func (p *PublicTestSuite) TestRename() {
 	}
 }
 
-func (p *PublicTestSuite) TestUnzip() {
+func (p *ClientTestSuite) TestUnzip() {
 	// -- Given
 	//
 	givenPath := filepath.Join(filepath.Dir(testutils.GetCurrentFile()), "testdata", "test_unzip.zip")
@@ -138,7 +139,7 @@ func (p *PublicTestSuite) TestUnzip() {
 	}
 }
 
-func (p *PublicTestSuite) TestMatchFs() {
+func (p *ClientTestSuite) TestMatchFs() {
 	// -- Given
 	//
 	type test struct {
@@ -189,7 +190,7 @@ func (p *PublicTestSuite) TestMatchFs() {
 	}
 }
 
-func (p *PublicTestSuite) TestMatchPath() {
+func (p *ClientTestSuite) TestMatchPath() {
 	// -- Given
 	//
 	type test struct {
@@ -236,7 +237,7 @@ func (p *PublicTestSuite) TestMatchPath() {
 	}
 }
 
-func (p *PublicTestSuite) TestZip() {
+func (p *ClientTestSuite) TestZip() {
 	// -- Given
 	//
 	f := fstest.MapFS{
@@ -272,7 +273,7 @@ func (p *PublicTestSuite) TestZip() {
 	}
 }
 
-func (p *PublicTestSuite) TestMatchDirectoryFile() {
+func (p *ClientTestSuite) TestMatchDirectoryFile() {
 	// -- Given
 	//
 	type test struct {
@@ -314,7 +315,7 @@ func (p *PublicTestSuite) TestMatchDirectoryFile() {
 	}
 }
 
-func (p *PublicTestSuite) TestDownload() {
+func (p *ClientTestSuite) TestDownload() {
 	// -- Given
 	//
 	instanceId := faker.Username()
@@ -532,7 +533,7 @@ func (p *PublicTestSuite) TestDownload() {
 	}
 }
 
-func (p *PublicTestSuite) TestUpload() {
+func (p *ClientTestSuite) TestUpload() {
 	// -- Given
 	//
 	type test struct {
@@ -603,7 +604,44 @@ func (p *PublicTestSuite) TestUpload() {
 	}
 }
 
-func (p *PublicTestSuite) EqualFiles(expectedNames []string, f fs.FS) bool {
+func (p *ClientTestSuite) TestMove() {
+	// -- Given
+	//
+	to := filepath.Join(os.TempDir(), faker.Username())
+	defer func(path string) {
+		_ = os.RemoveAll(path)
+	}(to)
+
+	givenFs := fstest.MapFS{
+		"my/dir/file.txt": {
+			Data: []byte(`file`),
+		},
+	}
+	given := &actions.MoveFile{
+		From: &filesystem.DirectoryFileMatcher{
+			Directory: "/my/dir",
+			Matches: &filesystem.FileMatcher{
+				Name: "file.txt",
+			},
+		},
+		To: filepath.Join(to, "file.txt"),
+	}
+
+	// -- When
+	//
+	err := move(givenFs, given)
+
+	// -- Then
+	//
+	if p.NoError(err) {
+		b, err := os.ReadFile(given.GetTo())
+		if p.NoError(err) {
+			p.Equal("file", string(b))
+		}
+	}
+}
+
+func (p *ClientTestSuite) EqualFiles(expectedNames []string, f fs.FS) bool {
 	files, err := fileutils.FindFilenames(f)
 	if p.NoError(err) {
 		return p.ElementsMatch(expectedNames, files)
@@ -612,5 +650,5 @@ func (p *PublicTestSuite) EqualFiles(expectedNames []string, f fs.FS) bool {
 }
 
 func TestPublicTestSuite(t *testing.T) {
-	suite.Run(t, new(PublicTestSuite))
+	suite.Run(t, new(ClientTestSuite))
 }

@@ -27,8 +27,8 @@ type SetupPhaseBuilder interface {
 	// extension e.g. to rename a matching "save.zip" to "autosave.zip" this field would be "autosave"
 	Rename(srcDir string, matches *filesystem.FileMatcher, dstFilename string) SetupPhaseBuilder
 
-	// MoveFile moves a singular file. Both src and dst must be absolute paths to files.
-	MoveFile(src, dst string) SetupPhaseBuilder
+	// MoveFile moves a singular file. If the matcher matches multiple files, the last will be selected. dst must be absolute paths to files.
+	MoveFile(fromDirectory string, matches *filesystem.FileMatcher, dst string) SetupPhaseBuilder
 
 	Gid(i int) SetupPhaseBuilder
 
@@ -47,11 +47,14 @@ type setupPhaseBuilder struct {
 	SetupPhase *blueprint.SetupPhase
 }
 
-func (s *setupPhaseBuilder) MoveFile(src, dst string) SetupPhaseBuilder {
+func (s *setupPhaseBuilder) MoveFile(fromDirectory string, matches *filesystem.FileMatcher, dst string) SetupPhaseBuilder {
 	s.SetupPhase.Actions = append(s.SetupPhase.Actions, &blueprint.SetupAction{
 		Move: &actions.MoveFile{
-			From: src,
-			To:   dst,
+			From: &filesystem.DirectoryFileMatcher{
+				Directory: fromDirectory,
+				Matches:   matches,
+			},
+			To: dst,
 		},
 	})
 

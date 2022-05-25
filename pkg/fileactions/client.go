@@ -69,8 +69,7 @@ func New(c userfiles.Client) Client {
 }
 
 func (i *client) MoveFile(a *actions.MoveFile) error {
-	dir, f := filepath.Split(a.GetFrom())
-	return fileutils.MoveFile(os.DirFS(dir), f, a.GetTo())
+	return move(os.DirFS(a.GetFrom().GetDirectory()), a)
 }
 
 func (i *client) Rename(r *actions.RenameFiles) error {
@@ -162,6 +161,28 @@ func Unzip(file *actions.UnzipFile) error {
 
 func Extract(file *actions.ExtractFiles) error {
 	return Default.Extract(file)
+}
+
+func move(fp fs.FS, f *actions.MoveFile) error {
+	found, err := Find(fp, f.GetFrom().GetMatches())
+	if err != nil {
+		logrus.WithError(err).Error("Failed to find matching file when unpacking.")
+		return err
+	}
+	if found == "" {
+		return nil
+	}
+
+	logrus.WithField("found", found).Debug("Found path to move.")
+
+	dir, name := filepath.Split(found)
+	sub, err := fs.Sub(fp, filepath.Clean(dir))
+	if err != nil {
+		logrus.WithError(err).WithField("dir", f.GetFrom().GetDirectory()).WithField("found", found).Error("Failed to get relative directory")
+		return err
+	}
+
+	return fileutils.MoveFile(sub, name, f.GetTo())
 }
 
 func extract(fp fs.FS, file *actions.ExtractFiles) error {
