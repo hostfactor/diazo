@@ -145,8 +145,8 @@ func (f *fileTriggerConditionBuilder) Build() *blueprint.FileTriggerCondition {
 type FileTriggerActionBuilder interface {
 	Upload(from string, filename string, folder string) FileTriggerActionBuilder
 
-	// ZipFolder zips the absolute path to the dir and moves the zip file to the absolute path.
-	ZipFolder(dir, to string) FileTriggerActionBuilder
+	// ZipFolder zips the absolute path f to a zip
+	ZipFolder(to string, entries ...*actions.ZipFileEntry) FileTriggerActionBuilder
 
 	Build() *blueprint.FileTriggerAction
 }
@@ -155,8 +155,21 @@ func newFileTriggerActionBuilder() FileTriggerActionBuilder {
 	return &fileTriggerActionBuilder{Action: &blueprint.FileTriggerAction{}}
 }
 
-func ZipFolder(dir, to string) FileTriggerActionBuilder {
-	return newFileTriggerActionBuilder().ZipFolder(dir, to)
+// ZipEntry adds a zip entry into the resulting zip file. f should be an absolute path to a file/folder on the system. pathPrefix is a relative path
+// which the resulting file will be placed into in the zip file. If pathPrefix is not set, the file is placed into the root of the zip.
+//
+//    fi := "/my/file.txt"
+//    pp := "path/prefix"
+//    Zip(fi, pp) // adds entry in the zip folder with the path "path/prefix/file.txt"
+func ZipEntry(f, pathPrefix string) *actions.ZipFileEntry {
+	return &actions.ZipFileEntry{
+		From:       f,
+		PathPrefix: pathPrefix,
+	}
+}
+
+func ZipFolder(to string, entries ...*actions.ZipFileEntry) FileTriggerActionBuilder {
+	return newFileTriggerActionBuilder().ZipFolder(to, entries...)
 }
 
 func UploadSaveFile(from string, filename string) FileTriggerActionBuilder {
@@ -188,11 +201,15 @@ func (f *fileTriggerActionBuilder) Upload(from, filename string, folder string) 
 	return f
 }
 
-func (f *fileTriggerActionBuilder) ZipFolder(dir, to string) FileTriggerActionBuilder {
+func (f *fileTriggerActionBuilder) ZipFolder(to string, entries ...*actions.ZipFileEntry) FileTriggerActionBuilder {
 	f.Action = &blueprint.FileTriggerAction{
 		Zip: &actions.ZipFile{
-			From: &actions.ZipFile_Source{Directory: dir},
-			To:   &actions.ZipFile_Destination{Path: to},
+			From: &actions.ZipFile_Source{
+				Files: entries,
+			},
+			To: &actions.ZipFile_Destination{
+				Path: to,
+			},
 		},
 	}
 	return f
