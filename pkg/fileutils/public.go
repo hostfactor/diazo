@@ -192,6 +192,28 @@ func Remove(src fs.FS, rel string) error {
 	return nil
 }
 
+func PersistMapFS(targetDir string, f fstest.MapFS) error {
+	for k, v := range f {
+		dir, name := filepath.Split(k)
+		if dir != "" {
+			dir = filepath.Clean(filepath.Join(targetDir, dir))
+		} else {
+			dir = targetDir
+		}
+		_ = os.MkdirAll(dir, os.ModePerm)
+
+		if v.Mode == 0 {
+			v.Mode = os.ModePerm
+		}
+		err := os.WriteFile(filepath.Join(dir, name), v.Data, v.Mode)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func InspectZipFile(fp string) (*zip.Reader, error) {
 	d, f := filepath.Split(fp)
 	return InspectZipFileFs(os.DirFS(d), f)

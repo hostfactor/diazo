@@ -148,7 +148,7 @@ func (i *client) Upload(instanceId, userId, title string, u *actions.UploadFile,
 }
 
 func (i *client) Zip(z *actions.ZipFile) error {
-	return zipFs(os.DirFS(z.GetFrom().GetDirectory()), ".", z)
+	return zipFile(z)
 }
 
 func Rename(r *actions.RenameFiles) error {
@@ -289,7 +289,7 @@ func Zip(z *actions.ZipFile) error {
 	return Default.Zip(z)
 }
 
-func zipFs(f fs.FS, dir string, z *actions.ZipFile) error {
+func zipFile(z *actions.ZipFile) error {
 	_ = os.MkdirAll(filepath.Dir(z.GetTo().GetPath()), os.ModePerm)
 	archive, err := os.Create(z.GetTo().GetPath())
 	if err != nil {
@@ -300,42 +300,82 @@ func zipFs(f fs.FS, dir string, z *actions.ZipFile) error {
 	}(archive)
 
 	writer := zip.NewWriter(archive)
-	err = fs.WalkDir(f, dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
 
-		if d.IsDir() {
-			return err
-		}
-
-		w, err := writer.Create(path)
-		if err != nil {
-			return err
-		}
-
-		b, err := fs.ReadFile(f, path)
-		if err != nil {
-			return err
-		}
-
-		_, err = w.Write(b)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
+	fi := z.GetFrom().GetFiles()
+	if z.GetFrom().GetDirectory() != "" {
+		fi = append(fi, &actions.ZipFileEntry{
+			From: z.GetFrom().GetDirectory(),
+		})
 	}
 
-	err = writer.Close()
-	if err != nil {
-		return err
+	for _, v := range fi {
+		info, err := os.Stat(v.GetFrom())
+		if err != nil {
+			logrus.WithError(err).WithField("fp", v.GetFrom()).Error("Failed to find file.")
+			continue
+		}
+
+		if info.IsDir() {
+			err = filepath.WalkDir(v.GetFrom(), func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+
+				if d.IsDir() {
+					return err
+				}
+
+				p, err := filepath.Rel(v.GetFrom(), path)
+				if err != nil {
+					return err
+				}
+
+				w, err := writer.Create(filepath.Join(v.GetPathPrefix(), p))
+				if err != nil {
+					return err
+				}
+
+				f, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				defer func(f *os.File) {
+					_ = f.Close()
+				}(f)
+
+				_, err = io.Copy(w, f)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+			if err != nil {
+				logrus.WithError(err).WithField("fp", v).Error("Failed to zip file.")
+				return err
+			}
+		} else {
+			w, err := writer.Create(filepath.Join(v.GetPathPrefix(), filepath.Base(v.GetFrom())))
+			if err != nil {
+				return err
+			}
+
+			f, err := os.Open(v.GetFrom())
+			if err != nil {
+				return err
+			}
+			defer func(f *os.File) {
+				_ = f.Close()
+			}(f)
+
+			_, err = io.Copy(w, f)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	return nil
+	return writer.Close()
 }
 
 func rename(src fs.FS, destDir string, r *actions.RenameFiles) error {

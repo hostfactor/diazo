@@ -241,23 +241,38 @@ func (p *ClientTestSuite) TestZip() {
 	// -- Given
 	//
 	f := fstest.MapFS{
-		"file/a.txt": {Data: []byte("")},
-		"file/b.txt": {Data: []byte("")},
-		"opt/c.txt":  {Data: []byte("")},
+		"file/a.txt":     {Data: []byte("")},
+		"file/b.txt":     {Data: []byte("")},
+		"opt/derp/c.txt": {Data: []byte("")},
+		"var/tmp/c.txt":  {Data: []byte("")},
+		"var/tmp/d.txt":  {Data: []byte("")},
 	}
+	baseDir := filepath.Join(os.TempDir(), faker.Username())
+	p.NoError(fileutils.PersistMapFS(baseDir, f))
 
-	dest := filepath.Join(os.TempDir(), faker.Username(), "test.zip")
+	dest := filepath.Join(baseDir, "test.zip")
 	given := &actions.ZipFile{
-		From: &actions.ZipFile_Source{Directory: "."},
-		To:   &actions.ZipFile_Destination{Path: dest},
+		From: &actions.ZipFile_Source{
+			Directory: filepath.Join(baseDir, "opt"),
+			Files: []*actions.ZipFileEntry{
+				{
+					From: filepath.Join(baseDir, "file"),
+				},
+				{
+					From:       filepath.Join(baseDir, "var/tmp/d.txt"),
+					PathPrefix: "tmp",
+				},
+			},
+		},
+		To: &actions.ZipFile_Destination{Path: dest},
 	}
 
 	// -- When
 	//
-	err := zipFs(f, "file", given)
+	err := zipFile(given)
 	defer func(path string) {
 		_ = os.RemoveAll(path)
-	}(dest)
+	}(baseDir)
 
 	// -- Then
 	//
@@ -268,7 +283,7 @@ func (p *ClientTestSuite) TestZip() {
 			for i, v := range r.File {
 				filenames[i] = v.Name
 			}
-			p.ElementsMatch([]string{"file/a.txt", "file/b.txt"}, filenames)
+			p.ElementsMatch([]string{"a.txt", "b.txt", "derp/c.txt", "tmp/d.txt"}, filenames)
 		}
 	}
 }
