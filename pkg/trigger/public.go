@@ -111,6 +111,12 @@ func ExecuteFileTriggerAction(fp, instanceId, userId, title string, action *blue
 			v.From = &actions.ZipFile_Source{Directory: renderTemplateString(d, templateData)}
 		}
 
+		for i, entry := range v.GetFrom().GetFiles() {
+			if entry.From != "" {
+				v.From.Files[i].From = renderTemplateString(entry.From, templateData)
+			}
+		}
+
 		logrus.WithField("data", v.String()).Debug("Triggering zip.")
 		return fileactions.Zip(v)
 	} else if v := action.GetUpload(); v != nil {
@@ -124,6 +130,17 @@ func ExecuteFileTriggerAction(fp, instanceId, userId, title string, action *blue
 
 		logrus.WithField("data", v.String()).Debug("Triggering upload.")
 		return fileactions.Upload(instanceId, userId, title, v, opts.UploadOpts)
+	} else if v := action.GetMove(); v != nil {
+		if v.GetFrom().GetDirectory() != "" {
+			v.From.Directory = renderTemplateString(v.GetFrom().GetDirectory(), templateData)
+		}
+
+		if to := v.GetTo(); to != "" {
+			v.To = renderTemplateString(v.To, templateData)
+		}
+
+		logrus.WithField("data", v.String()).Debug("Triggering move.")
+		return fileactions.Move(v)
 	}
 
 	return nil
