@@ -163,6 +163,10 @@ func Extract(file *actions.ExtractFiles) error {
 	return Default.Extract(file)
 }
 
+func Move(file *actions.MoveFile) error {
+	return Default.MoveFile(file)
+}
+
 func move(fp fs.FS, f *actions.MoveFile) error {
 	found, err := Find(fp, f.GetFrom().GetMatches())
 	if err != nil {

@@ -181,6 +181,8 @@ func ExecuteSetupAction(instanceId, userId, title string, act *blueprint.SetupAc
 		return fileactions.Extract(v)
 	} else if v := act.GetDownload(); v != nil {
 		return fileactions.Download(instanceId, userId, title, v, opts.DownloadOpts)
+	} else if v := act.GetMove(); v != nil {
+		return fileactions.Move(v)
 	}
 	return nil
 }
