@@ -155,9 +155,157 @@ func (p *PublicTestSuite) TestMergeFileSelect() {
 		actual := MergeFileSelect(v.F1, v.F2)
 		p.Equal(v.Expected(v.F1, v.F2), actual, "test %d", i)
 	}
+}
 
-	// -- Then
+func (p *PublicTestSuite) TestClean() {
+	// -- Given
 	//
+	type test struct {
+		Given    []*filesystem.FileSelection
+		Expected func([]*filesystem.FileSelection) []*filesystem.FileSelection
+	}
+
+	tests := []test{
+		{
+			Given: []*filesystem.FileSelection{
+				{
+					VolumeName: "mods",
+					Locations: []*filesystem.FileLocation{
+						{
+							BucketFile: &filesystem.BucketFile{
+								Name:   "mod1.dll",
+								Folder: "mods",
+							},
+						},
+					},
+				},
+				{
+					VolumeName: "mods",
+					Locations: []*filesystem.FileLocation{
+						{
+							BucketFile: &filesystem.BucketFile{
+								Name:   "mod2.dll",
+								Folder: "mods",
+							},
+						},
+					},
+				},
+				{
+					VolumeName: "saves",
+					Locations: []*filesystem.FileLocation{
+						{
+							BucketFile: &filesystem.BucketFile{
+								Name:   "save.zip",
+								Folder: "saves",
+							},
+						},
+					},
+				},
+			},
+			Expected: func(selections []*filesystem.FileSelection) []*filesystem.FileSelection {
+				return []*filesystem.FileSelection{
+					{
+						VolumeName: "mods",
+						Locations: []*filesystem.FileLocation{
+							{
+								BucketFile: &filesystem.BucketFile{
+									Name:   "mod1.dll",
+									Folder: "mods",
+								},
+							},
+							{
+								BucketFile: &filesystem.BucketFile{
+									Name:   "mod2.dll",
+									Folder: "mods",
+								},
+							},
+						},
+					},
+					selections[2],
+				}
+			},
+		},
+		{
+			Given: []*filesystem.FileSelection{
+				{
+					VolumeName: "mods",
+					Locations: []*filesystem.FileLocation{
+						{
+							BucketFile: &filesystem.BucketFile{},
+						},
+						{
+							BucketFile: &filesystem.BucketFile{
+								Name: "mod1.dll",
+							},
+						},
+						{
+							BucketFile: &filesystem.BucketFile{
+								Folder: "mods",
+							},
+						},
+						{
+							BucketFile: &filesystem.BucketFile{
+								Name:   "mod2.dll",
+								Folder: "mods",
+							},
+						},
+						{},
+					},
+				},
+				{
+					VolumeName: "mods",
+					Locations: []*filesystem.FileLocation{
+						{
+							BucketFile: &filesystem.BucketFile{
+								Name:   "mod1.dll",
+								Folder: "mods",
+							},
+						},
+					},
+				},
+				{
+					VolumeName: "saves",
+					Locations: []*filesystem.FileLocation{
+						{
+							BucketFile: &filesystem.BucketFile{
+								Name:   "save.zip",
+								Folder: "saves",
+							},
+						},
+					},
+				},
+			},
+			Expected: func(selections []*filesystem.FileSelection) []*filesystem.FileSelection {
+				return []*filesystem.FileSelection{
+					{
+						VolumeName: "mods",
+						Locations: []*filesystem.FileLocation{
+							{
+								BucketFile: &filesystem.BucketFile{
+									Name:   "mod2.dll",
+									Folder: "mods",
+								},
+							},
+							{
+								BucketFile: &filesystem.BucketFile{
+									Name:   "mod1.dll",
+									Folder: "mods",
+								},
+							},
+						},
+					},
+					selections[2],
+				}
+			},
+		},
+	}
+
+	// -- When
+	//
+	for i, v := range tests {
+		actual := Clean(v.Given)
+		p.Equal(v.Expected(v.Given), actual, "test %d", i)
+	}
 }
 
 func TestPublicTestSuite(t *testing.T) {
