@@ -16,19 +16,17 @@ func ToSetupActions(data *blueprint.BlueprintData, p *providerconfig.ProviderCon
 		if vol == nil {
 			continue
 		}
-		sa := MountFileSelectionSetupAction(selection, vol.GetMount())
-		if sa != nil {
-			acts = append(acts, sa)
-		}
+		acts = append(acts, MountFileSelectionSetupAction(selection, vol.GetMount())...)
 	}
 
 	return acts
 }
 
-func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *providerconfig.VolumeMount) *blueprint.SetupAction {
-	// there's nothing to mount
+func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *providerconfig.VolumeMount) []*blueprint.SetupAction {
+	acts := make([]*blueprint.SetupAction, 0, len(sel.Locations))
+
 	if mount == nil {
-		return nil
+		return acts
 	}
 
 	for _, loc := range sel.GetLocations() {
@@ -36,8 +34,7 @@ func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *provide
 			if source.GetName() == "" {
 				continue
 			}
-			return &blueprint.SetupAction{
-
+			acts = append(acts, &blueprint.SetupAction{
 				Download: &actions.DownloadFile{
 					Source: &actions.DownloadFile_Source{Storage: &filesystem.BucketFileMatcher{
 						Matches: &filesystem.FileMatcher{Name: source.GetName()},
@@ -45,8 +42,9 @@ func MountFileSelectionSetupAction(sel *filesystem.FileSelection, mount *provide
 					}},
 					To: mount.GetPath(),
 				},
-			}
+			})
 		}
 	}
-	return nil
+
+	return acts
 }
