@@ -29,6 +29,17 @@ type Client interface {
 
 type OnError func(err error)
 
+type UploadError struct {
+	Filename string
+	Key      userfiles.Key
+	Folder   string
+	Err      error
+}
+
+func (u *UploadError) Error() string {
+	return u.Err.Error()
+}
+
 type UploadOpts struct {
 	OnUpload OnUploadFunc
 	OnError  OnError
@@ -259,11 +270,17 @@ func (i *client) upload(f fs.FS, fromPath string, key userfiles.Key, upload *act
 		fn := filename + ext
 
 		w := i.UserfilesClient.CreateFileWriter(fn, v.GetFolder(), key)
+		e := &UploadError{
+			Filename: fn,
+			Key:      key,
+			Folder:   v.GetFolder(),
+		}
 
 		written, err := io.Copy(w, fi)
 		if err != nil {
 			if opts.OnError != nil {
-				opts.OnError(err)
+				e.Err = err
+				opts.OnError(e)
 			}
 			return err
 		}
@@ -271,7 +288,8 @@ func (i *client) upload(f fs.FS, fromPath string, key userfiles.Key, upload *act
 		err = w.Close()
 		if err != nil {
 			if opts.OnError != nil {
-				opts.OnError(err)
+				e.Err = err
+				opts.OnError(e)
 			}
 			return err
 		}
