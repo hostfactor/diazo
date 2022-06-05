@@ -2,6 +2,7 @@ package fileactions
 
 import (
 	"archive/zip"
+	"fmt"
 	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/diazo/pkg/fileutils"
@@ -37,7 +38,7 @@ type UploadError struct {
 }
 
 func (u *UploadError) Error() string {
-	return u.Err.Error()
+	return fmt.Sprintf("err: %s, filename: %s, key: %v, folder: %s", u.Err.Error(), u.Filename, u.Key, u.Folder)
 }
 
 type UploadOpts struct {
