@@ -1,6 +1,7 @@
 package providerconfig
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
@@ -126,7 +127,8 @@ func (c *client) unmarshalProviderFile(filename string, content []byte) (*provid
 	}
 
 	conf := new(providerconfig.ProviderConfig)
-	err := jsonpb.UnmarshalString(string(content), conf)
+
+	err := (&jsonpb.Unmarshaler{AllowUnknownFields: true}).Unmarshal(bytes.NewReader(content), conf)
 	if err != nil {
 		return nil, err
 	}
