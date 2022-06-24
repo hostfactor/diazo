@@ -9,6 +9,7 @@ import (
 	"github.com/hostfactor/diazo/pkg/fileutils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -179,6 +180,7 @@ func Watch(ctx context.Context, callback WatchFunc, conds ...*blueprint.FileTrig
 
 	for _, v := range conds {
 		for _, d := range v.GetDirectories() {
+			_ = os.MkdirAll(d, os.ModePerm)
 			logrus.WithField("directory", d).Debug("Watching directory for triggers.")
 			err := watcher.Add(d)
 			if err != nil {
