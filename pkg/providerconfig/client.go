@@ -34,6 +34,9 @@ type Client interface {
 	// LoadAll loads all provider configs within the directory. Assumes that every Provider directory is housed as a child
 	// directory of the specified fs.FS.
 	LoadAll(f fs.FS) ([]*LoadedProviderConfig, error)
+
+	// LoadProviderFile loads the provider file from the fs.FS and the relative path of fp and unmarshalls it.
+	LoadProviderFile(f fs.FS, fp string) (*providerconfig.ProviderConfig, error)
 }
 
 func NewClient() Client {
@@ -95,12 +98,7 @@ func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*Load
 		return nil, fmt.Errorf("invalid %s JSON schema file: %s", settingsFilename, err.Error())
 	}
 
-	providerContent, err := fs.ReadFile(f, providerFilename)
-	if err != nil {
-		return nil, err
-	}
-
-	out.Config, err = c.unmarshalProviderFile(providerFilename, providerContent)
+	out.Config, err = c.LoadProviderFile(f, providerFilename)
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +106,14 @@ func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*Load
 	return out, nil
 }
 
-func (c *client) unmarshalProviderFile(filename string, content []byte) (*providerconfig.ProviderConfig, error) {
+func (c *client) LoadProviderFile(f fs.FS, fp string) (*providerconfig.ProviderConfig, error) {
+	_, filename := filepath.Split(fp)
 	ext := filepath.Ext(filename)
+	content, err := fs.ReadFile(f, fp)
+	if err != nil {
+		return nil, err
+	}
+
 	if ext == ".yaml" || ext == ".yml" {
 		m := map[string]interface{}{}
 		err := yaml.Unmarshal(content, &m)
@@ -128,7 +132,7 @@ func (c *client) unmarshalProviderFile(filename string, content []byte) (*provid
 
 	conf := new(providerconfig.ProviderConfig)
 
-	err := (&jsonpb.Unmarshaler{AllowUnknownFields: true}).Unmarshal(bytes.NewReader(content), conf)
+	err = (&jsonpb.Unmarshaler{AllowUnknownFields: true}).Unmarshal(bytes.NewReader(content), conf)
 	if err != nil {
 		return nil, err
 	}
