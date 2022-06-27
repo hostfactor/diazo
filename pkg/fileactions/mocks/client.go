@@ -14,13 +14,13 @@ type Client struct {
 	mock.Mock
 }
 
-// Download provides a mock function with given fields: instanceId, userId, title, dl, opts
-func (_m *Client) Download(instanceId string, userId string, title string, dl *actions.DownloadFile, opts fileactions.DownloadOpts) error {
-	ret := _m.Called(instanceId, userId, title, dl, opts)
+// Download provides a mock function with given fields: root, dl, opts
+func (_m *Client) Download(root string, dl *actions.DownloadFile, opts fileactions.DownloadOpts) error {
+	ret := _m.Called(root, dl, opts)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, *actions.DownloadFile, fileactions.DownloadOpts) error); ok {
-		r0 = rf(instanceId, userId, title, dl, opts)
+	if rf, ok := ret.Get(0).(func(string, *actions.DownloadFile, fileactions.DownloadOpts) error); ok {
+		r0 = rf(root, dl, opts)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -84,13 +84,13 @@ func (_m *Client) Unzip(file *actions.UnzipFile) error {
 	return r0
 }
 
-// Upload provides a mock function with given fields: instanceId, userId, title, u, opts
-func (_m *Client) Upload(instanceId string, userId string, title string, u *actions.UploadFile, opts fileactions.UploadOpts) error {
-	ret := _m.Called(instanceId, userId, title, u, opts)
+// Upload provides a mock function with given fields: root, u, opts
+func (_m *Client) Upload(root string, u *actions.UploadFile, opts fileactions.UploadOpts) error {
+	ret := _m.Called(root, u, opts)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, *actions.UploadFile, fileactions.UploadOpts) error); ok {
-		r0 = rf(instanceId, userId, title, u, opts)
+	if rf, ok := ret.Get(0).(func(string, *actions.UploadFile, fileactions.UploadOpts) error); ok {
+		r0 = rf(root, u, opts)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -10,17 +10,14 @@ import (
 )
 
 type Client interface {
-	FetchLatestFile(name string, key Key) (*File, error)
-	FetchLatestFileReader(name string, key Key) (*FileReader, error)
-	FetchFileContent(name string, folder string, k Key) ([]byte, error)
-	ListUserFolder(folder string, k Key) ([]*FileHandle, error)
-	ListFolder(k Key) ([]*FileHandle, error)
-	DeleteFolder(k Key) error
-	DeleteFile(k Key, folder string, fileName string) error
-	CreateFileWriter(filename string, folder string, key Key) io.WriteCloser
-	SignedUrl(fileDesc FileDesc, httpMethod string, folder string, key Key) (string, error)
+	ListFolder(key string) ([]*FileHandle, error)
+	DeleteFile(key string) error
+	CreateFileWriter(key string) io.WriteCloser
 	FetchFileReader(key string) (*FileReader, error)
-	CreateFileWriterRaw(p string) io.WriteCloser
+}
+
+type UrlSigner interface {
+	SignedUrl(fileDesc FileDesc, httpMethod string, folder string) (string, error)
 }
 
 type Opts struct {
@@ -58,24 +55,10 @@ type FileReader struct {
 	Reader io.ReadCloser
 }
 
-type Key struct {
-	InstanceId string
-	UserId     string
-	Title      string
-}
-
 type FileDesc struct {
 	Name     string
 	ByteSize uint64
 	MIMEType string
-}
-
-func GenBaseKey(key Key) string {
-	return path.Clean(path.Join(key.UserId, key.InstanceId, key.Title))
-}
-
-func GenFolderKey(name string, key Key) string {
-	return path.Join(GenBaseKey(key), name)
 }
 
 type DownloadedFile struct {

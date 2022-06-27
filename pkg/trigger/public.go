@@ -25,14 +25,16 @@ type ExecuteFileOpts struct {
 	OnFileChange func(fn string)
 }
 
-func ExecuteFile(ctx context.Context, instanceId, userId, title string, ft *blueprint.FileTrigger, opts ExecuteFileOpts) error {
+// ExecuteFile executes the blueprint.FileTrigger using the root. The root is the base path of where to execute the action
+// e.g. for download or upload.
+func ExecuteFile(ctx context.Context, root string, ft *blueprint.FileTrigger, opts ExecuteFileOpts) error {
 	logrus.WithField("data", ft.String()).Debug("Starting file triggers.")
 	err := Watch(ctx, func(event fsnotify.Event) {
 		if opts.OnFileChange != nil {
 			opts.OnFileChange(event.Name)
 		}
 		for _, v := range ft.GetThen() {
-			err := ExecuteFileTriggerAction(event.Name, instanceId, userId, title, v, opts.ExecuteOpts)
+			err := ExecuteFileTriggerAction(event.Name, root, v, opts.ExecuteOpts)
 			if err != nil {
 				logrus.WithError(err).WithField("file", event.Name).Error("Failed to execute action.")
 			}
@@ -45,7 +47,9 @@ func ExecuteFile(ctx context.Context, instanceId, userId, title string, ft *blue
 	return nil
 }
 
-func ExecuteFileTriggerAction(fp, instanceId, userId, title string, action *blueprint.FileTriggerAction, opts ExecuteOpts) error {
+// ExecuteFileTriggerAction executes the blueprint.FileTriggerAction using the root. The root is the base path of where
+// to execute the action e.g. for download or upload.
+func ExecuteFileTriggerAction(fp, root string, action *blueprint.FileTriggerAction, opts ExecuteOpts) error {
 	dir, filename := filepath.Split(fp)
 	name, ext := fileutils.SplitFile(filename)
 	templateData := &blueprint.FileTriggerTemplateData{
@@ -79,7 +83,7 @@ func ExecuteFileTriggerAction(fp, instanceId, userId, title string, action *blue
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering download.")
-		return fileactions.Download(instanceId, userId, title, v, opts.DownloadOpts)
+		return fileactions.Download(root, v, opts.DownloadOpts)
 	} else if v := action.GetExtract(); v != nil {
 		if t := v.GetTo(); t != "" {
 			v.To = renderTemplateString(t, templateData)
@@ -130,7 +134,7 @@ func ExecuteFileTriggerAction(fp, instanceId, userId, title string, action *blue
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering upload.")
-		return fileactions.Upload(instanceId, userId, title, v, opts.UploadOpts)
+		return fileactions.Upload(root, v, opts.UploadOpts)
 	} else if v := action.GetMove(); v != nil {
 		if v.GetFrom().GetDirectory() != "" {
 			v.From.Directory = renderTemplateString(v.GetFrom().GetDirectory(), templateData)
@@ -191,7 +195,7 @@ func Watch(ctx context.Context, callback WatchFunc, conds ...*blueprint.FileTrig
 	return nil
 }
 
-func ExecuteSetupAction(instanceId, userId, title string, act *blueprint.SetupAction, opts ExecuteOpts) error {
+func ExecuteSetupAction(folder string, act *blueprint.SetupAction, opts ExecuteOpts) error {
 	if v := act.GetUnzip(); v != nil {
 		return fileactions.Unzip(v)
 	} else if v := act.GetRename(); v != nil {
@@ -199,7 +203,7 @@ func ExecuteSetupAction(instanceId, userId, title string, act *blueprint.SetupAc
 	} else if v := act.GetExtract(); v != nil {
 		return fileactions.Extract(v)
 	} else if v := act.GetDownload(); v != nil {
-		return fileactions.Download(instanceId, userId, title, v, opts.DownloadOpts)
+		return fileactions.Download(folder, v, opts.DownloadOpts)
 	} else if v := act.GetMove(); v != nil {
 		return fileactions.Move(v)
 	}

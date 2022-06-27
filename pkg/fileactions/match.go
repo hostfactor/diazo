@@ -12,15 +12,15 @@ import (
 	"strings"
 )
 
-func MatchBucketFiles(cli userfiles.Client, key userfiles.Key, folder string, matcher *filesystem.FileMatcher) ([]*userfiles.FileReader, error) {
+func MatchBucketFiles(cli userfiles.Client, folder string, matcher *filesystem.FileMatcher) ([]*userfiles.FileReader, error) {
 	if matcher.GetName() != "" {
-		r, err := cli.FetchFileReader(path.Join(userfiles.GenFolderKey(folder, key), matcher.GetName()))
+		r, err := cli.FetchFileReader(path.Join(folder, matcher.GetName()))
 		if err != nil {
 			return nil, err
 		}
 		return []*userfiles.FileReader{r}, nil
 	} else if matcher.GetGlob() != nil || matcher.GetRegex() != "" {
-		handles, err := cli.ListUserFolder(folder, key)
+		handles, err := cli.ListFolder(folder)
 		if err != nil {
 			return nil, err
 		}

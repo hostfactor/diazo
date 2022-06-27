@@ -26,9 +26,7 @@ func (p *PublicTestSuite) BeforeTest(_, _ string) {
 func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 	// -- Given
 	//
-	instanceId := faker.Username()
-	userId := faker.Username()
-	title := faker.Username()
+	root := faker.Username()
 
 	type test struct {
 		GivenFp       string
@@ -70,7 +68,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 				},
 			},
 			Before: func(fp string) {
-				p.FileActions.On("Upload", instanceId, userId, title, &actions.UploadFile{
+				p.FileActions.On("Upload", root, &actions.UploadFile{
 					From: &actions.UploadFile_Source{Path: fp},
 					To:   &filesystem.FileLocation{BucketFile: &filesystem.BucketFile{Name: "save1.zip"}},
 				}, fileactions.UploadOpts{}).Return(nil)
@@ -82,7 +80,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 				Download: &actions.DownloadFile{To: "${ext} ${name}"},
 			},
 			Before: func(fp string) {
-				p.FileActions.On("Download", instanceId, userId, title, &actions.DownloadFile{To: "zip save"}, fileactions.DownloadOpts{}).Return(nil)
+				p.FileActions.On("Download", root, &actions.DownloadFile{To: "zip save"}, fileactions.DownloadOpts{}).Return(nil)
 			},
 		},
 		{
@@ -110,7 +108,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 	for i, v := range tests {
 		fmt.Println("test ", i)
 		v.Before(v.GivenFp)
-		err := ExecuteFileTriggerAction(v.GivenFp, instanceId, userId, title, v.Given, ExecuteOpts{})
+		err := ExecuteFileTriggerAction(v.GivenFp, root, v.Given, ExecuteOpts{})
 		p.Equal(v.ExpectedError, err)
 		p.FileActions.AssertExpectations(p.T())
 		p.FileActions = new(fileactionsmocks.Client)

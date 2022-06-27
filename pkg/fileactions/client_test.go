@@ -333,9 +333,7 @@ func (p *ClientTestSuite) TestMatchDirectoryFile() {
 func (p *ClientTestSuite) TestDownload() {
 	// -- Given
 	//
-	instanceId := faker.Username()
-	userId := faker.Username()
-	title := faker.Username()
+	root := faker.Username()
 
 	type test struct {
 		Match         *filesystem.FileMatcher
@@ -345,12 +343,7 @@ func (p *ClientTestSuite) TestDownload() {
 		ExpectedError error
 	}
 
-	key := userfiles.Key{
-		InstanceId: instanceId,
-		UserId:     userId,
-		Title:      title,
-	}
-	folderKey := userfiles.GenFolderKey("saves", key)
+	folderKey := path.Join(root, "saves")
 	tests := []test{
 		{
 			Match: &filesystem.FileMatcher{
@@ -424,7 +417,7 @@ func (p *ClientTestSuite) TestDownload() {
 					{Key: path.Join(folderKey, "asd.zip"), Name: "asd.zip"},
 					{Key: path.Join(folderKey, "asd.jpg"), Name: "asd.jpg"},
 				}
-				p.UserfilesClient.On("ListUserFolder", "saves", key).Return(handles, nil)
+				p.UserfilesClient.On("ListFolder", path.Join(root, "saves")).Return(handles, nil)
 				for _, v := range handles {
 					p.UserfilesClient.On("FetchFileReader", v.Key).Return(&userfiles.FileReader{
 						Key:    v.Key,
@@ -452,7 +445,7 @@ func (p *ClientTestSuite) TestDownload() {
 				Regex: ".+\\.zip",
 			},
 			Before: func(d string) {
-				p.UserfilesClient.On("ListUserFolder", "saves", key).Return(make([]*userfiles.FileHandle, 0), nil)
+				p.UserfilesClient.On("ListFolder", path.Join(root, "saves")).Return(make([]*userfiles.FileHandle, 0), nil)
 			},
 			After: func(d string) {
 				de, err := os.ReadDir(d)
@@ -472,7 +465,7 @@ func (p *ClientTestSuite) TestDownload() {
 					{Key: path.Join(folderKey, "asd.jpg"), Name: "asd.jpg"},
 					{Key: path.Join(folderKey, "asd.png"), Name: "asd.png"},
 				}
-				p.UserfilesClient.On("ListUserFolder", "saves", key).Return(handles, nil)
+				p.UserfilesClient.On("ListFolder", path.Join(root, "saves")).Return(handles, nil)
 				for _, v := range handles {
 					p.UserfilesClient.On("FetchFileReader", v.Key).Return(&userfiles.FileReader{
 						Key:    v.Key,
@@ -504,7 +497,7 @@ func (p *ClientTestSuite) TestDownload() {
 				Glob: &filesystem.GlobMatcher{Value: []string{"*.zip", "*.jpg"}},
 			},
 			Before: func(d string) {
-				p.UserfilesClient.On("ListUserFolder", "saves", key).Return(make([]*userfiles.FileHandle, 0), nil)
+				p.UserfilesClient.On("ListFolder", path.Join(root, "saves")).Return(make([]*userfiles.FileHandle, 0), nil)
 			},
 			After: func(d string) {
 				de, err := os.ReadDir(d)
@@ -539,7 +532,7 @@ func (p *ClientTestSuite) TestDownload() {
 		}
 
 		v.Before(dir)
-		err := p.Svc.Download(instanceId, userId, title, given, DownloadOpts{})
+		err := p.Svc.Download(root, given, DownloadOpts{})
 		v.After(dir)
 		p.Equal(v.ExpectedError, err, "test %d", i)
 		p.UserfilesClient.AssertExpectations(p.T())
@@ -559,11 +552,7 @@ func (p *ClientTestSuite) TestUpload() {
 		Given         *actions.UploadFile
 	}
 
-	key := userfiles.Key{
-		InstanceId: faker.Username(),
-		UserId:     faker.Username(),
-		Title:      faker.Username(),
-	}
+	root := faker.Username()
 	tests := []test{
 		{
 			Fs: fstest.MapFS{
@@ -577,7 +566,7 @@ func (p *ClientTestSuite) TestUpload() {
 				}},
 			},
 			Before: func(b *testutils.ByteBuffer) {
-				p.UserfilesClient.On("CreateFileWriter", "save.txt", "saves", key).Return(b, nil)
+				p.UserfilesClient.On("CreateFileWriter", path.Join(root, "saves", "save.txt")).Return(b, nil)
 			},
 			After: func(b *testutils.ByteBuffer) {
 				p.Equal(b.String(), "text")
@@ -595,7 +584,7 @@ func (p *ClientTestSuite) TestUpload() {
 				}},
 			},
 			Before: func(b *testutils.ByteBuffer) {
-				p.UserfilesClient.On("CreateFileWriter", "save.txt", "saves", key).Return(b)
+				p.UserfilesClient.On("CreateFileWriter", path.Join(root, "saves", "save.txt")).Return(b)
 			},
 			After: func(b *testutils.ByteBuffer) {
 				p.Equal(b.String(), "text")
@@ -610,7 +599,7 @@ func (p *ClientTestSuite) TestUpload() {
 			Buffer: bytes.Buffer{},
 		}
 		v.Before(b)
-		err := p.Svc.upload(v.Fs, v.Given.GetFrom().GetPath(), key, v.Given, UploadOpts{})
+		err := p.Svc.upload(v.Fs, v.Given.GetFrom().GetPath(), root, v.Given, UploadOpts{})
 		v.After(b)
 		p.Equal(err, v.ExpectedError, "test %d", i)
 		p.UserfilesClient.AssertExpectations(p.T())

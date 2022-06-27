@@ -115,7 +115,7 @@ func (p *PublicTestSuite) TestUploadBucketFile() {
 	key := path.Join(given.Folder, given.Name)
 
 	writer := &testutils.ByteBuffer{Buffer: bytes.Buffer{}}
-	p.UserfilesClient.On("CreateFileWriterRaw", key).Return(writer)
+	p.UserfilesClient.On("CreateFileWriter", key).Return(writer)
 
 	// -- When
 	//

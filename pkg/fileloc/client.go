@@ -57,7 +57,7 @@ func (c *client) UploadBucketFile(f fs.FS, fromPath string, b *filesystem.Bucket
 		_ = fi.Close()
 	}(fi)
 
-	w := c.UserfilesClient.CreateFileWriterRaw(path.Join(b.Folder, b.Name))
+	w := c.UserfilesClient.CreateFileWriter(path.Join(b.Folder, b.Name))
 
 	written, err := io.Copy(w, fi)
 	if err != nil {

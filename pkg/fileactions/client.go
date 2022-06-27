@@ -22,8 +22,8 @@ type Client interface {
 	Rename(r *actions.RenameFiles) error
 	Unzip(file *actions.UnzipFile) error
 	Extract(file *actions.ExtractFiles) error
-	Download(instanceId, userId, title string, dl *actions.DownloadFile, opts DownloadOpts) error
-	Upload(instanceId, userId, title string, u *actions.UploadFile, opts UploadOpts) error
+	Download(root string, dl *actions.DownloadFile, opts DownloadOpts) error
+	Upload(root string, u *actions.UploadFile, opts UploadOpts) error
 	Zip(z *actions.ZipFile) error
 	MoveFile(a *actions.MoveFile) error
 }
@@ -31,14 +31,20 @@ type Client interface {
 type OnError func(err error)
 
 type UploadError struct {
+	// The filename and extension of the key.
 	Filename string
-	Key      userfiles.Key
-	Folder   string
-	Err      error
+
+	// The base of the path.
+	Root string
+
+	// The bath after Root.
+	Folder string
+
+	Err error
 }
 
 func (u *UploadError) Error() string {
-	return fmt.Sprintf("err: %s, filename: %s, key: %v, folder: %s", u.Err.Error(), u.Filename, u.Key, u.Folder)
+	return fmt.Sprintf("err: %s, filename: %s, key: %v, folder: %s", u.Err.Error(), u.Filename, u.Root, u.Folder)
 }
 
 type UploadOpts struct {
@@ -53,10 +59,16 @@ type DownloadOpts struct {
 
 type OnUploadFuncParams struct {
 	BytesWritten int64
-	Filename     string
-	Key          userfiles.Key
-	Folder       string
-	Error        error
+
+	// The filename and extension of the entire key.
+	Filename string
+
+	// The base path of the key
+	Root string
+
+	// The path immediately following the Root.
+	Folder string
+	Error  error
 }
 
 type OnUploadFunc func(params OnUploadFuncParams)
@@ -106,17 +118,13 @@ func (i *client) Extract(file *actions.ExtractFiles) error {
 	return extract(os.DirFS(file.GetFrom().GetDirectory()), file)
 }
 
-func (i *client) Download(instanceId, userId, title string, dl *actions.DownloadFile, opts DownloadOpts) error {
+func (i *client) Download(folder string, dl *actions.DownloadFile, opts DownloadOpts) error {
 	storage := dl.GetSource().GetStorage()
 	if storage == nil {
 		return nil
 	}
 
-	readers, err := MatchBucketFiles(i.UserfilesClient, userfiles.Key{
-		InstanceId: instanceId,
-		UserId:     userId,
-		Title:      title,
-	}, storage.GetFolder(), storage.GetMatches())
+	readers, err := MatchBucketFiles(i.UserfilesClient, path.Join(folder, storage.GetFolder()), storage.GetMatches())
 	if err != nil {
 		if opts.OnError != nil {
 			opts.OnError(err)
@@ -150,13 +158,9 @@ func (i *client) Download(instanceId, userId, title string, dl *actions.Download
 	return nil
 }
 
-func (i *client) Upload(instanceId, userId, title string, u *actions.UploadFile, opts UploadOpts) error {
+func (i *client) Upload(folder string, u *actions.UploadFile, opts UploadOpts) error {
 	dir, fn := path.Split(u.GetFrom().GetPath())
-	return i.upload(os.DirFS(dir), fn, userfiles.Key{
-		InstanceId: instanceId,
-		UserId:     userId,
-		Title:      title,
-	}, u, opts)
+	return i.upload(os.DirFS(dir), fn, folder, u, opts)
 }
 
 func (i *client) Zip(z *actions.ZipFile) error {
@@ -243,15 +247,15 @@ func Find(directory fs.FS, matcher *filesystem.FileMatcher) (string, error) {
 	return found, nil
 }
 
-func Download(instanceId, userId, title string, dl *actions.DownloadFile, opts DownloadOpts) error {
-	return Default.Download(instanceId, userId, title, dl, opts)
+func Download(root string, dl *actions.DownloadFile, opts DownloadOpts) error {
+	return Default.Download(root, dl, opts)
 }
 
-func Upload(instanceId, userId, title string, u *actions.UploadFile, opts UploadOpts) error {
-	return Default.Upload(instanceId, userId, title, u, opts)
+func Upload(root string, u *actions.UploadFile, opts UploadOpts) error {
+	return Default.Upload(root, u, opts)
 }
 
-func (i *client) upload(f fs.FS, fromPath string, key userfiles.Key, upload *actions.UploadFile, opts UploadOpts) error {
+func (i *client) upload(f fs.FS, fromPath, folder string, upload *actions.UploadFile, opts UploadOpts) error {
 	fi, err := f.Open(fromPath)
 	if err != nil {
 		if opts.OnError != nil {
@@ -270,10 +274,10 @@ func (i *client) upload(f fs.FS, fromPath string, key userfiles.Key, upload *act
 		}
 		fn := filename + ext
 
-		w := i.UserfilesClient.CreateFileWriter(fn, v.GetFolder(), key)
+		w := i.UserfilesClient.CreateFileWriter(path.Join(folder, v.GetFolder(), fn))
 		e := &UploadError{
 			Filename: fn,
-			Key:      key,
+			Root:     folder,
 			Folder:   v.GetFolder(),
 		}
 
@@ -299,7 +303,7 @@ func (i *client) upload(f fs.FS, fromPath string, key userfiles.Key, upload *act
 			opts.OnUpload(OnUploadFuncParams{
 				BytesWritten: written,
 				Filename:     fn,
-				Key:          key,
+				Root:         folder,
 				Folder:       v.GetFolder(),
 			})
 		}

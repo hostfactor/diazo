@@ -14,29 +14,13 @@ type Client struct {
 	mock.Mock
 }
 
-// CreateFileWriter provides a mock function with given fields: filename, folder, key
-func (_m *Client) CreateFileWriter(filename string, folder string, key userfiles.Key) io.WriteCloser {
-	ret := _m.Called(filename, folder, key)
-
-	var r0 io.WriteCloser
-	if rf, ok := ret.Get(0).(func(string, string, userfiles.Key) io.WriteCloser); ok {
-		r0 = rf(filename, folder, key)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(io.WriteCloser)
-		}
-	}
-
-	return r0
-}
-
-// CreateFileWriterRaw provides a mock function with given fields: p
-func (_m *Client) CreateFileWriterRaw(p string) io.WriteCloser {
-	ret := _m.Called(p)
+// CreateFileWriter provides a mock function with given fields: key
+func (_m *Client) CreateFileWriter(key string) io.WriteCloser {
+	ret := _m.Called(key)
 
 	var r0 io.WriteCloser
 	if rf, ok := ret.Get(0).(func(string) io.WriteCloser); ok {
-		r0 = rf(p)
+		r0 = rf(key)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(io.WriteCloser)
@@ -46,55 +30,18 @@ func (_m *Client) CreateFileWriterRaw(p string) io.WriteCloser {
 	return r0
 }
 
-// DeleteFile provides a mock function with given fields: k, folder, fileName
-func (_m *Client) DeleteFile(k userfiles.Key, folder string, fileName string) error {
-	ret := _m.Called(k, folder, fileName)
+// DeleteFile provides a mock function with given fields: key
+func (_m *Client) DeleteFile(key string) error {
+	ret := _m.Called(key)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(userfiles.Key, string, string) error); ok {
-		r0 = rf(k, folder, fileName)
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(key)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
-}
-
-// DeleteFolder provides a mock function with given fields: k
-func (_m *Client) DeleteFolder(k userfiles.Key) error {
-	ret := _m.Called(k)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(userfiles.Key) error); ok {
-		r0 = rf(k)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// FetchFileContent provides a mock function with given fields: name, folder, k
-func (_m *Client) FetchFileContent(name string, folder string, k userfiles.Key) ([]byte, error) {
-	ret := _m.Called(name, folder, k)
-
-	var r0 []byte
-	if rf, ok := ret.Get(0).(func(string, string, userfiles.Key) []byte); ok {
-		r0 = rf(name, folder, k)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, userfiles.Key) error); ok {
-		r1 = rf(name, folder, k)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // FetchFileReader provides a mock function with given fields: key
@@ -120,59 +67,13 @@ func (_m *Client) FetchFileReader(key string) (*userfiles.FileReader, error) {
 	return r0, r1
 }
 
-// FetchLatestFile provides a mock function with given fields: name, key
-func (_m *Client) FetchLatestFile(name string, key userfiles.Key) (*userfiles.File, error) {
-	ret := _m.Called(name, key)
-
-	var r0 *userfiles.File
-	if rf, ok := ret.Get(0).(func(string, userfiles.Key) *userfiles.File); ok {
-		r0 = rf(name, key)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*userfiles.File)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, userfiles.Key) error); ok {
-		r1 = rf(name, key)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// FetchLatestFileReader provides a mock function with given fields: name, key
-func (_m *Client) FetchLatestFileReader(name string, key userfiles.Key) (*userfiles.FileReader, error) {
-	ret := _m.Called(name, key)
-
-	var r0 *userfiles.FileReader
-	if rf, ok := ret.Get(0).(func(string, userfiles.Key) *userfiles.FileReader); ok {
-		r0 = rf(name, key)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*userfiles.FileReader)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, userfiles.Key) error); ok {
-		r1 = rf(name, key)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ListFolder provides a mock function with given fields: k
-func (_m *Client) ListFolder(k userfiles.Key) ([]*userfiles.FileHandle, error) {
-	ret := _m.Called(k)
+// ListFolder provides a mock function with given fields: key
+func (_m *Client) ListFolder(key string) ([]*userfiles.FileHandle, error) {
+	ret := _m.Called(key)
 
 	var r0 []*userfiles.FileHandle
-	if rf, ok := ret.Get(0).(func(userfiles.Key) []*userfiles.FileHandle); ok {
-		r0 = rf(k)
+	if rf, ok := ret.Get(0).(func(string) []*userfiles.FileHandle); ok {
+		r0 = rf(key)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*userfiles.FileHandle)
@@ -180,52 +81,8 @@ func (_m *Client) ListFolder(k userfiles.Key) ([]*userfiles.FileHandle, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(userfiles.Key) error); ok {
-		r1 = rf(k)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ListUserFolder provides a mock function with given fields: folder, k
-func (_m *Client) ListUserFolder(folder string, k userfiles.Key) ([]*userfiles.FileHandle, error) {
-	ret := _m.Called(folder, k)
-
-	var r0 []*userfiles.FileHandle
-	if rf, ok := ret.Get(0).(func(string, userfiles.Key) []*userfiles.FileHandle); ok {
-		r0 = rf(folder, k)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*userfiles.FileHandle)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, userfiles.Key) error); ok {
-		r1 = rf(folder, k)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// SignedUrl provides a mock function with given fields: fileDesc, httpMethod, folder, key
-func (_m *Client) SignedUrl(fileDesc userfiles.FileDesc, httpMethod string, folder string, key userfiles.Key) (string, error) {
-	ret := _m.Called(fileDesc, httpMethod, folder, key)
-
-	var r0 string
-	if rf, ok := ret.Get(0).(func(userfiles.FileDesc, string, string, userfiles.Key) string); ok {
-		r0 = rf(fileDesc, httpMethod, folder, key)
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(userfiles.FileDesc, string, string, userfiles.Key) error); ok {
-		r1 = rf(fileDesc, httpMethod, folder, key)
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(key)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -4,6 +4,8 @@ package mocks
 
 import (
 	blueprint "github.com/hostfactor/api/go/blueprint"
+	actions "github.com/hostfactor/api/go/blueprint/actions"
+
 	mock "github.com/stretchr/testify/mock"
 
 	provideractions "github.com/hostfactor/diazo/pkg/provideractions"
@@ -46,13 +48,20 @@ func (_m *FileTriggerActionBuilder) Upload(from string, filename string, folder 
 	return r0
 }
 
-// ZipFolder provides a mock function with given fields: dir, to
-func (_m *FileTriggerActionBuilder) ZipFolder(dir string, to string) provideractions.FileTriggerActionBuilder {
-	ret := _m.Called(dir, to)
+// ZipFolder provides a mock function with given fields: to, entries
+func (_m *FileTriggerActionBuilder) ZipFolder(to string, entries ...*actions.ZipFileEntry) provideractions.FileTriggerActionBuilder {
+	_va := make([]interface{}, len(entries))
+	for _i := range entries {
+		_va[_i] = entries[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, to)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	var r0 provideractions.FileTriggerActionBuilder
-	if rf, ok := ret.Get(0).(func(string, string) provideractions.FileTriggerActionBuilder); ok {
-		r0 = rf(dir, to)
+	if rf, ok := ret.Get(0).(func(string, ...*actions.ZipFileEntry) provideractions.FileTriggerActionBuilder); ok {
+		r0 = rf(to, entries...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(provideractions.FileTriggerActionBuilder)
