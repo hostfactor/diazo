@@ -28,31 +28,26 @@ type Opts struct {
 
 type FileHandle struct {
 	// The filename from the object key.
-	Name string
+	Name string `json:"name"`
 
 	// The entirety of the object key.
-	Key string
+	Key string `json:"key"`
 
 	// The time the object was created.
-	Created time.Time
+	Created time.Time `json:"created"`
 
 	// The name of the bucket that the object resides in.
-	Bucket string
+	Bucket string `json:"bucket"`
 
-	ByteSize uint64
+	ByteSize uint64 `json:"byte_size"`
 
-	MIME string
-}
-
-type File struct {
-	FileHandle
-	Content []byte
+	MIME string `json:"mime"`
 }
 
 type FileReader struct {
-	Key    string
-	Bucket string
-	Reader io.ReadCloser
+	Key    string        `json:"key"`
+	Bucket string        `json:"bucket"`
+	Reader io.ReadCloser `json:"reader"`
 }
 
 type FileDesc struct {
