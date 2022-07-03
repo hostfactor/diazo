@@ -21,12 +21,12 @@ type Server interface {
 type HttpServer struct {
 	server  *http.Server
 	BaseDir string
+	FS      fs.FS
 
-	CreateFileWriter http.HandlerFunc
-	ListFiles        http.HandlerFunc
-	DeleteFile       http.HandlerFunc
-	FetchFile        http.HandlerFunc
+	OnErrorFunc OnErrorFunc
 }
+
+type OnErrorFunc func(err error, req *http.Request)
 
 func (h *HttpServer) Shutdown(ctx context.Context) error {
 	return h.server.Shutdown(ctx)
@@ -36,22 +36,19 @@ func (h *HttpServer) ListenAndServe() error {
 	return h.server.ListenAndServe()
 }
 
-func NewServer(addr, baseDir string) *HttpServer {
-	d := os.DirFS(baseDir)
+func NewServer(addr, baseDir string, f fs.FS) *HttpServer {
 	out := &HttpServer{
-		server:           &http.Server{Addr: addr},
-		BaseDir:          baseDir,
-		CreateFileWriter: CreateFileWriterHandler(baseDir),
-		ListFiles:        ListFolderHandler(d, baseDir),
-		DeleteFile:       DeleteFileHandler(baseDir),
-		FetchFile:        FetchFileHandler(d),
+		server:      &http.Server{Addr: addr},
+		BaseDir:     baseDir,
+		FS:          f,
+		OnErrorFunc: func(_ error, _ *http.Request) {},
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/folder", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case http.MethodGet:
-			out.ListFiles(w, req)
+			out.ListFolderHandler(w, req)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
@@ -60,11 +57,11 @@ func NewServer(addr, baseDir string) *HttpServer {
 	mux.HandleFunc("/file", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case http.MethodDelete:
-			out.DeleteFile(w, req)
+			out.DeleteFileHandler(w, req)
 		case http.MethodGet:
-			out.FetchFile(w, req)
+			out.FetchFileHandler(w, req)
 		case http.MethodPost:
-			out.CreateFileWriter(w, req)
+			out.CreateFileWriterHandler(w, req)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
@@ -75,130 +72,131 @@ func NewServer(addr, baseDir string) *HttpServer {
 	return out
 }
 
-func CreateFileWriterHandler(baseDir string) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		fp := req.URL.Query().Get("fp")
-		if fp == "" {
+func (h *HttpServer) CreateFileWriterHandler(w http.ResponseWriter, req *http.Request) {
+	fp := req.URL.Query().Get("fp")
+	if fp == "" {
+		w.WriteHeader(http.StatusNotFound)
+		h.OnErrorFunc(errors.New("query param fp required"), req)
+		return
+	}
+	_ = os.MkdirAll(filepath.Join(h.BaseDir, filepath.Dir(fp)), os.ModePerm)
+	keyPath := filepath.Join(h.BaseDir, fp)
+	f, err := os.Create(keyPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
 			w.WriteHeader(http.StatusNotFound)
-			return
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
 		}
-		_ = os.MkdirAll(filepath.Join(baseDir, filepath.Dir(fp)), os.ModePerm)
-		keyPath := filepath.Join(baseDir, fp)
-		f, err := os.Create(keyPath)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				w.WriteHeader(http.StatusNotFound)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-			resp := &ErrorResponse{Message: fmt.Sprintf("Failed to create file %s: %s", keyPath, err.Error())}
-			_ = json.NewEncoder(w).Encode(resp)
-			return
-		}
-		_, err = io.Copy(f, req.Body)
-		if err != nil {
-			resp := &ErrorResponse{Message: fmt.Sprintf("Failed to upload file %s: %s", keyPath, err.Error())}
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(resp)
-			return
-		}
+		resp := &ErrorResponse{Message: fmt.Sprintf("Failed to create file %s: %s", keyPath, err.Error())}
+		_ = json.NewEncoder(w).Encode(resp)
+		h.OnErrorFunc(err, req)
+		return
+	}
+	_, err = io.Copy(f, req.Body)
+	if err != nil {
+		resp := &ErrorResponse{Message: fmt.Sprintf("Failed to upload file %s: %s", keyPath, err.Error())}
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(resp)
+		h.OnErrorFunc(err, req)
+		return
 	}
 }
 
-func FetchFileHandler(f fs.FS) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		fp := req.URL.Query().Get("fp")
-		if fp == "" {
+func (h *HttpServer) FetchFileHandler(w http.ResponseWriter, req *http.Request) {
+	fp := req.URL.Query().Get("fp")
+	if fp == "" {
+		w.WriteHeader(http.StatusNotFound)
+		h.OnErrorFunc(errors.New("query param fp required"), req)
+		return
+	}
+
+	f, err := h.FS.Open(fp)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
 			w.WriteHeader(http.StatusNotFound)
-			return
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
 		}
+		resp := &ErrorResponse{Message: fmt.Sprintf("Failed to fetch file %s: %s", fp, err.Error())}
+		_ = json.NewEncoder(w).Encode(resp)
+		h.OnErrorFunc(err, req)
+		return
+	}
 
-		f, err := f.Open(fp)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				w.WriteHeader(http.StatusNotFound)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-			resp := &ErrorResponse{Message: fmt.Sprintf("Failed to fetch file %s: %s", fp, err.Error())}
-			_ = json.NewEncoder(w).Encode(resp)
-			return
-		}
-
-		_, err = io.Copy(w, f)
-		if err != nil {
-			resp := &ErrorResponse{Message: fmt.Sprintf("Failed to download file %s: %s", fp, err.Error())}
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(resp)
-			return
-		}
+	_, err = io.Copy(w, f)
+	if err != nil {
+		resp := &ErrorResponse{Message: fmt.Sprintf("Failed to download file %s: %s", fp, err.Error())}
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(resp)
+		h.OnErrorFunc(err, req)
+		return
 	}
 }
 
-func DeleteFileHandler(baseDir string) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		fp := req.URL.Query().Get("fp")
-		if fp == "" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
+func (h *HttpServer) DeleteFileHandler(w http.ResponseWriter, req *http.Request) {
+	fp := req.URL.Query().Get("fp")
+	if fp == "" {
+		w.WriteHeader(http.StatusNotFound)
+		h.OnErrorFunc(errors.New("query param fp required"), req)
+		return
+	}
 
-		keyPath := filepath.Join(baseDir, fp)
-		err := os.Remove(keyPath)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				w.WriteHeader(http.StatusNotFound)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-			resp := &ErrorResponse{Message: fmt.Sprintf("Failed to remove file %s: %s", keyPath, err.Error())}
-			_ = json.NewEncoder(w).Encode(resp)
-			return
+	keyPath := filepath.Join(h.BaseDir, fp)
+	err := os.Remove(keyPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
 		}
+		resp := &ErrorResponse{Message: fmt.Sprintf("Failed to remove file %s: %s", keyPath, err.Error())}
+		_ = json.NewEncoder(w).Encode(resp)
+		h.OnErrorFunc(err, req)
+		return
 	}
 }
 
-func ListFolderHandler(f fs.FS, baseDir string) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		out := &ListFolderResponse{Handlers: make([]*FileHandle, 0)}
-		fp := req.URL.Query().Get("fp")
+func (h *HttpServer) ListFolderHandler(w http.ResponseWriter, req *http.Request) {
+	out := &ListFolderResponse{Handlers: make([]*FileHandle, 0)}
+	fp := req.URL.Query().Get("fp")
 
-		keyPath := filepath.Join(baseDir, fp)
-		err := fs.WalkDir(f, fp, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
+	keyPath := filepath.Join(h.BaseDir, fp)
+	err := fs.WalkDir(h.FS, fp, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
-			if d.IsDir() {
-				return nil
-			}
-
-			i, err := d.Info()
-			if err != nil {
-				return err
-			}
-
-			out.Handlers = append(out.Handlers, &FileHandle{
-				Name:     filepath.Base(path),
-				Key:      path,
-				Created:  i.ModTime(),
-				ByteSize: uint64(i.Size()),
-				MIME:     mime.TypeByExtension(filepath.Ext(path)),
-			})
-
+		if d.IsDir() {
 			return nil
-		})
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				w.WriteHeader(http.StatusNotFound)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-			}
-			resp := &ErrorResponse{Message: fmt.Sprintf("Failed to list files %s: %s", keyPath, err.Error())}
-			_ = json.NewEncoder(w).Encode(resp)
-			return
 		}
 
-		_ = json.NewEncoder(w).Encode(out)
+		i, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		out.Handlers = append(out.Handlers, &FileHandle{
+			Name:     filepath.Base(path),
+			Key:      path,
+			Created:  i.ModTime(),
+			ByteSize: uint64(i.Size()),
+			MIME:     mime.TypeByExtension(filepath.Ext(path)),
+		})
+
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		resp := &ErrorResponse{Message: fmt.Sprintf("Failed to list files %s: %s", keyPath, err.Error())}
+		_ = json.NewEncoder(w).Encode(resp)
+		h.OnErrorFunc(err, req)
+		return
 	}
+
+	_ = json.NewEncoder(w).Encode(out)
 }

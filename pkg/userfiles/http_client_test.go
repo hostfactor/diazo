@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/testing/protocmp"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
@@ -26,7 +27,7 @@ func (h *HttpClientTestSuite) TestWriteFile() {
 	f := filepath.Join(os.TempDir(), faker.Username())
 	_ = os.MkdirAll(f, os.ModePerm)
 	defer os.RemoveAll(f)
-	s := httptest.NewServer(CreateFileWriterHandler(f))
+	s := httptest.NewServer(http.HandlerFunc(NewServer("", f, nil).CreateFileWriterHandler))
 
 	given := NewHttpClient(s.URL)
 
@@ -60,7 +61,7 @@ func (h *HttpClientTestSuite) TestFetchFile() {
 			Data: content,
 		},
 	}
-	s := httptest.NewServer(FetchFileHandler(f))
+	s := httptest.NewServer(http.HandlerFunc(NewServer("", "", f).FetchFileHandler))
 	given := NewHttpClient(s.URL)
 
 	// -- When
@@ -102,7 +103,7 @@ func (h *HttpClientTestSuite) TestListFiles() {
 		},
 	}
 
-	s := httptest.NewServer(ListFolderHandler(tFs, "."))
+	s := httptest.NewServer(http.HandlerFunc(NewServer("", "", tFs).ListFolderHandler))
 	given := NewHttpClient(s.URL)
 	expected := []*FileHandle{
 		{
@@ -148,7 +149,7 @@ func (h *HttpClientTestSuite) TestDeleteFile() {
 	keyPath := filepath.Join(f, "key.txt")
 	_ = os.WriteFile(keyPath, []byte{}, os.ModePerm)
 
-	s := httptest.NewServer(DeleteFileHandler(f))
+	s := httptest.NewServer(http.HandlerFunc(NewServer("", f, nil).DeleteFileHandler))
 	given := NewHttpClient(s.URL)
 
 	// -- When
