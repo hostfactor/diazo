@@ -21,19 +21,25 @@ type Client interface {
 	Download(b *filesystem.FileLocation, toPath string) (userfiles.DownloadedFile, error)
 }
 
-func New(c userfiles.Client) Client {
+// New creates a new Client. Ultimately, it acts as a wrapper to convert filesystem definitions to userfiles.Client calls.
+// The basePath is a prefix path used for all keys with the userfiles.Client.
+func New(c userfiles.Client, basePath string) Client {
 	return &client{
 		UserfilesClient: c,
+		BasePath:        basePath,
 	}
 }
 
 type client struct {
 	UserfilesClient userfiles.Client
+
+	// This path is prefixed to all keys when using the UserfilesClient.
+	BasePath string
 }
 
 func (c *client) Download(b *filesystem.FileLocation, toPath string) (userfiles.DownloadedFile, error) {
 	if source := b.GetBucketFile(); source != nil {
-		reader, err := c.UserfilesClient.FetchFileReader(path.Join(source.GetFolder(), source.GetName()))
+		reader, err := c.UserfilesClient.FetchFileReader(path.Join(c.BasePath, source.GetFolder(), source.GetName()))
 		if err != nil {
 			return userfiles.DownloadedFile{}, err
 		}
@@ -57,7 +63,7 @@ func (c *client) UploadBucketFile(f fs.FS, fromPath string, b *filesystem.Bucket
 		_ = fi.Close()
 	}(fi)
 
-	w := c.UserfilesClient.CreateFileWriter(path.Join(b.Folder, b.Name))
+	w := c.UserfilesClient.CreateFileWriter(path.Join(c.BasePath, b.Folder, b.Name))
 
 	written, err := io.Copy(w, fi)
 	if err != nil {
