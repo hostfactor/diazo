@@ -155,6 +155,8 @@ func ExecuteFileTriggerAction(fp, root string, action *blueprint.FileTriggerActi
 
 type WatchFunc func(event fsnotify.Event)
 
+var DebounceInterval = 5 * time.Second
+
 func Watch(ctx context.Context, callback WatchFunc, conds ...*blueprint.FileTriggerCondition) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -166,7 +168,7 @@ func Watch(ctx context.Context, callback WatchFunc, conds ...*blueprint.FileTrig
 			select {
 			case <-ctx.Done():
 				return
-			case event, ok := <-Debounce(ctx, watcher.Events, 5*time.Second):
+			case event, ok := <-Debounce(ctx, watcher.Events, DebounceInterval):
 				logrus.WithField("fp", event.Name).WithField("op", event.Op).Trace("Detected file change.")
 				if !ok {
 					return
