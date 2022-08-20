@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 )
 
 type ExecuteOpts struct {
@@ -164,7 +166,7 @@ func Watch(ctx context.Context, callback WatchFunc, conds ...*blueprint.FileTrig
 			select {
 			case <-ctx.Done():
 				return
-			case event, ok := <-watcher.Events:
+			case event, ok := <-Debounce(ctx, watcher.Events, 5*time.Second):
 				logrus.WithField("fp", event.Name).WithField("op", event.Op).Trace("Detected file change.")
 				if !ok {
 					return
@@ -246,4 +248,48 @@ func matchesOp(op fsnotify.Op, bp ...blueprint.FileChangeOp) bool {
 
 func renderTemplateString(s string, data *blueprint.FileTriggerTemplateData) string {
 	return strings.NewReplacer("${dir}", data.GetDir(), "${abs}", data.GetAbs(), "${filename}", data.GetFilename(), "${name}", data.GetName(), "${ext}", data.GetExt()).Replace(s)
+}
+
+type debouncer struct {
+	Ev        *fsnotify.Event
+	Triggered time.Time
+	Interval  time.Duration
+	lock      sync.RWMutex
+}
+
+func Debounce(ctx context.Context, c chan fsnotify.Event, dur time.Duration) chan fsnotify.Event {
+	deb := &debouncer{Interval: dur}
+	return deb.Debounce(ctx, c)
+}
+
+func (d *debouncer) Debounce(ctx context.Context, c chan fsnotify.Event) chan fsnotify.Event {
+	out := make(chan fsnotify.Event, 1)
+
+	go func() {
+		ticker := time.NewTicker(d.Interval / 5)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				d.lock.Lock()
+				if d.Ev != nil && time.Now().Sub(d.Triggered) > d.Interval {
+					out <- *d.Ev
+					d.Ev = nil
+				}
+				d.lock.Unlock()
+			case ev, ok := <-c:
+				if !ok {
+					return
+				}
+
+				d.lock.Lock()
+				d.Triggered = time.Now()
+				d.Ev = &ev
+				d.lock.Unlock()
+			}
+		}
+	}()
+
+	return out
 }

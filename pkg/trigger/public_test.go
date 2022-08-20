@@ -1,8 +1,10 @@
 package trigger
 
 import (
+	"context"
 	"fmt"
 	"github.com/bxcodec/faker/v3"
+	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/blueprint"
 	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
@@ -10,6 +12,7 @@ import (
 	fileactionsmocks "github.com/hostfactor/diazo/pkg/fileactions/mocks"
 	"github.com/stretchr/testify/suite"
 	"testing"
+	"time"
 )
 
 type PublicTestSuite struct {
@@ -114,6 +117,48 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		p.FileActions = new(fileactionsmocks.Client)
 		fileactions.Default = p.FileActions
 	}
+}
+
+func (p *PublicTestSuite) TestDebounce() {
+	// -- Given
+	//
+	ch := make(chan fsnotify.Event, 1)
+
+	// -- When
+	//
+	out := Debounce(context.Background(), ch, 5*time.Millisecond)
+	timer := time.NewTimer(1 * time.Millisecond)
+	count := 0
+
+	// -- Then
+	//
+	go func() {
+		for {
+			select {
+			case <-timer.C:
+				ch <- fsnotify.Event{Name: "derp"}
+				return
+			default:
+			}
+			count++
+			ch <- fsnotify.Event{Name: "dorp"}
+		}
+	}()
+
+	evs := make([]fsnotify.Event, 0)
+	func() {
+		timeout := time.NewTimer(7 * time.Millisecond)
+		for {
+			select {
+			case <-timeout.C:
+				return
+			case e := <-out:
+				evs = append(evs, e)
+			}
+		}
+	}()
+	p.Equal(fsnotify.Event{Name: "derp"}, evs[0])
+	p.True(count > 1)
 }
 
 func TestPublicTestSuite(t *testing.T) {
