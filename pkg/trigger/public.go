@@ -9,6 +9,7 @@ import (
 	"github.com/hostfactor/diazo/pkg/fileutils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -155,8 +156,6 @@ func ExecuteFileTriggerAction(fp, root string, action *blueprint.FileTriggerActi
 
 type WatchFunc func(event fsnotify.Event)
 
-var DebounceInterval = 5 * time.Second
-
 func Watch(ctx context.Context, callback WatchFunc, conds ...*blueprint.FileTriggerCondition) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -168,10 +167,14 @@ func Watch(ctx context.Context, callback WatchFunc, conds ...*blueprint.FileTrig
 			select {
 			case <-ctx.Done():
 				return
-			case event, ok := <-Debounce(ctx, watcher.Events, DebounceInterval):
+			case event, ok := <-watcher.Events:
 				logrus.WithField("fp", event.Name).WithField("op", event.Op).Trace("Detected file change.")
 				if !ok {
 					return
+				}
+
+				if event.Op&fsnotify.Chmod == fsnotify.Chmod || event.Op&fsnotify.Rename == fsnotify.Rename {
+					continue
 				}
 
 				matches := false
@@ -268,27 +271,23 @@ func (d *debouncer) Debounce(ctx context.Context, c chan fsnotify.Event) chan fs
 	out := make(chan fsnotify.Event, 1)
 
 	go func() {
-		ticker := time.NewTicker(d.Interval / 5)
+		timer := time.NewTimer(math.MaxInt64)
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker.C:
-				d.lock.Lock()
-				if d.Ev != nil && time.Now().Sub(d.Triggered) > d.Interval {
+			case <-timer.C:
+				if d.Ev != nil {
 					out <- *d.Ev
 					d.Ev = nil
 				}
-				d.lock.Unlock()
 			case ev, ok := <-c:
 				if !ok {
 					return
 				}
 
-				d.lock.Lock()
-				d.Triggered = time.Now()
 				d.Ev = &ev
-				d.lock.Unlock()
+				timer.Reset(d.Interval)
 			}
 		}
 	}()
