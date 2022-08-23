@@ -1,16 +1,22 @@
-package trigger
+package reaction
 
 import (
 	"context"
 	"fmt"
 	"github.com/bxcodec/faker/v3"
 	"github.com/fsnotify/fsnotify"
-	"github.com/hostfactor/api/go/blueprint"
+	"github.com/hostfactor/api/go/app"
+	appmocks "github.com/hostfactor/api/go/app/mocks"
 	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
-	"github.com/hostfactor/diazo/pkg/fileactions"
-	fileactionsmocks "github.com/hostfactor/diazo/pkg/fileactions/mocks"
+	"github.com/hostfactor/api/go/blueprint/reaction"
+	"github.com/hostfactor/diazo/pkg/actions/fileactions"
+	fileactionsmocks "github.com/hostfactor/diazo/pkg/actions/fileactions/mocks"
+	"github.com/hostfactor/diazo/pkg/variable"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -33,7 +39,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 
 	type test struct {
 		GivenFp       string
-		Given         *blueprint.FileTriggerAction
+		Given         *reaction.FileReactionAction
 		ExpectedError error
 		Before        func(fp string)
 	}
@@ -41,7 +47,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 	tests := []test{
 		{
 			GivenFp: "/opt/file/save.zip",
-			Given: &blueprint.FileTriggerAction{
+			Given: &reaction.FileReactionAction{
 				Rename: &actions.RenameFiles{To: "${dir}/${filename}", From: &filesystem.DirectoryFileMatcher{Directory: "${abs}"}},
 			},
 			Before: func(fp string) {
@@ -55,7 +61,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		},
 		{
 			GivenFp: "/opt/file/save.zip",
-			Given: &blueprint.FileTriggerAction{
+			Given: &reaction.FileReactionAction{
 				Extract: &actions.ExtractFiles{To: "${dir}/${filename}", From: &filesystem.DirectoryFileMatcher{Directory: "${abs}"}},
 			},
 			Before: func(fp string) {
@@ -64,7 +70,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		},
 		{
 			GivenFp: "/opt/file/save.zip",
-			Given: &blueprint.FileTriggerAction{
+			Given: &reaction.FileReactionAction{
 				Upload: &actions.UploadFile{
 					From: &actions.UploadFile_Source{Path: "${dir}/${filename}"},
 					To:   &filesystem.FileLocation{BucketFile: &filesystem.BucketFile{Name: "${name}1.${ext}"}},
@@ -79,7 +85,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		},
 		{
 			GivenFp: "/opt/file/save.zip",
-			Given: &blueprint.FileTriggerAction{
+			Given: &reaction.FileReactionAction{
 				Download: &actions.DownloadFile{To: "${ext} ${name}"},
 			},
 			Before: func(fp string) {
@@ -88,7 +94,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		},
 		{
 			GivenFp: "/opt/file/save.zip",
-			Given: &blueprint.FileTriggerAction{
+			Given: &reaction.FileReactionAction{
 				Zip: &actions.ZipFile{From: &actions.ZipFile_Source{Directory: "${dir}"}},
 			},
 			Before: func(fp string) {
@@ -97,7 +103,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		},
 		{
 			GivenFp: "/opt/file/save.zip",
-			Given: &blueprint.FileTriggerAction{
+			Given: &reaction.FileReactionAction{
 				Unzip: &actions.UnzipFile{From: "${ext} ${dir}", To: "/my/file/${filename}"},
 			},
 			Before: func(fp string) {
@@ -111,11 +117,114 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 	for i, v := range tests {
 		fmt.Println("test ", i)
 		v.Before(v.GivenFp)
-		err := ExecuteFileTriggerAction(v.GivenFp, root, v.Given, ExecuteOpts{})
+		err := ExecuteFileReactionAction(v.GivenFp, root, variable.NewStore(), v.Given, ExecuteFileOpts{})
 		p.Equal(v.ExpectedError, err)
 		p.FileActions.AssertExpectations(p.T())
 		p.FileActions = new(fileactionsmocks.Client)
 		fileactions.Default = p.FileActions
+	}
+}
+
+func (p *PublicTestSuite) TestExecuteLog() {
+	// -- Given
+	//
+	appService := new(appmocks.AppServiceClient)
+	type test struct {
+		ExpectedErr error
+		Store       func() variable.Store
+		WriteLines  func(f *os.File)
+		Reactions   []*reaction.LogReaction
+		Opts        ExecuteLogOpts
+		Before      func()
+		After       func(store variable.Store)
+	}
+	log := filepath.Join(os.TempDir(), faker.Username(), "log.txt")
+	_ = os.MkdirAll(filepath.Dir(log), os.ModePerm)
+	f, _ := os.Create(log)
+	defer os.RemoveAll(filepath.Dir(log))
+
+	tests := []test{
+		{
+			Before: func() {
+				appService.On("SetVariable", mock.Anything, &app.SetVariable_Request{
+					Name:        "code - 12345",
+					Value:       "12345 - ",
+					DisplayName: "Code hi",
+				}).Return(nil, nil)
+			},
+			After: func(store variable.Store) {
+				p.Equal(2, store.Len())
+				p.Equal("hi", store.GetString("value"))
+				p.Equal("12345 - ", store.GetString("code - 12345"))
+			},
+			Store: func() variable.Store {
+				store := variable.NewStore()
+				store.AddEntries(&variable.Entry{
+					Key: "value",
+					Val: "hi",
+				})
+				return store
+			},
+			WriteLines: func(f *os.File) {
+				_, _ = f.WriteString("derp is ready: 12345")
+			},
+			Opts: ExecuteLogOpts{
+				OnStatusChange: func(s actions.SetStatus_Status) {
+					p.Equal(s, actions.SetStatus_ready)
+				},
+			},
+			Reactions: []*reaction.LogReaction{
+				{
+					When: &reaction.LogReactionCondition{
+						Matches: &reaction.LogMatcher{
+							Regex: "is ready: (\\d+)",
+						},
+					},
+					Then: &reaction.LogReactionAction{
+						SetVariable: &actions.SetVariable{
+							Name:        "code - {{matches.0}}",
+							Value:       "{{first_match}} - {{matches.1}}",
+							Save:        true,
+							DisplayName: "Code {{value}}",
+						},
+						SetStatus: &actions.SetStatus{
+							Status: actions.SetStatus_ready,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for i, v := range tests {
+		fmt.Println("test ", i)
+		var store variable.Store
+		if v.Store != nil {
+			store = v.Store()
+		}
+
+		if store == nil {
+			store = variable.NewStore()
+		}
+
+		if v.Before != nil {
+			v.Before()
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		err := ExecuteLog(ctx, log, store, appService, v.Reactions, v.Opts)
+		v.WriteLines(f)
+
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+
+		p.Equal(v.ExpectedErr, err)
+		if v.After != nil {
+			v.After(store)
+		}
+		appService.AssertExpectations(p.T())
+		_ = f.Close()
+		f, _ = os.Create(log)
+		appService = new(appmocks.AppServiceClient)
 	}
 }
 

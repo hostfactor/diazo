@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	fileactions "github.com/hostfactor/diazo/pkg/fileactions"
+	"github.com/hostfactor/diazo/pkg/actions/fileactions"
 	mock "github.com/stretchr/testify/mock"
 )
 

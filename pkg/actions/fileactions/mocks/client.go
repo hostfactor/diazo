@@ -4,8 +4,7 @@ package mocks
 
 import (
 	actions "github.com/hostfactor/api/go/blueprint/actions"
-	fileactions "github.com/hostfactor/diazo/pkg/fileactions"
-
+	"github.com/hostfactor/diazo/pkg/actions/fileactions"
 	mock "github.com/stretchr/testify/mock"
 )
 
