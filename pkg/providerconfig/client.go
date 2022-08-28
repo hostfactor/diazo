@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/hostfactor/api/go/providerconfig"
+	"github.com/hostfactor/diazo/pkg/doccache"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
@@ -23,6 +24,7 @@ var (
 type LoadedProviderConfig struct {
 	Config         *providerconfig.ProviderConfig
 	SettingsSchema *gojsonschema.Schema
+	DocCache       doccache.DocCache
 	RawSettings    []byte
 	Filename       string
 }
@@ -99,6 +101,11 @@ func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*Load
 	}
 
 	out.Config, err = c.LoadProviderFile(f, providerFilename)
+	if err != nil {
+		return nil, err
+	}
+
+	out.DocCache, err = doccache.New(f, out.Config)
 	if err != nil {
 		return nil, err
 	}
