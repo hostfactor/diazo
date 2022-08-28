@@ -15,7 +15,7 @@ type DocCache interface {
 
 func New(f fs.FS, pr *providerconfig.ProviderConfig) (DocCache, error) {
 	out := &blueprint.Docs{
-		Entries: make([]*blueprint.Docs_Entry, 0, len(pr.GetDocs().Entries)),
+		Entries: make([]*blueprint.Docs_Entry, 0, len(pr.GetDocs().GetEntries())),
 	}
 
 	for _, v := range pr.GetDocs().GetEntries() {
