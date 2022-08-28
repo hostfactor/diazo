@@ -21,10 +21,10 @@ func RenderString(og string, store Store, entries ...*Entry) string {
 
 func replaceVarsDeprecated(og string, store Store) string {
 	return strings.NewReplacer(
-		"${dir}", store.GetString("dir"),
-		"${abs}", store.GetString("abs"),
-		"${filename}", store.GetString("filename"),
-		"${name}", store.GetString("name"),
-		"${ext}", store.GetString("ext"),
+		"${dir}", store.GetStringValue("dir"),
+		"${abs}", store.GetStringValue("abs"),
+		"${filename}", store.GetStringValue("filename"),
+		"${name}", store.GetStringValue("name"),
+		"${ext}", store.GetStringValue("ext"),
 	).Replace(og)
 }

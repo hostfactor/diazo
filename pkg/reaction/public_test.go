@@ -154,8 +154,8 @@ func (p *PublicTestSuite) TestExecuteLog() {
 			},
 			After: func(store variable.Store) {
 				p.Equal(2, store.Len())
-				p.Equal("hi", store.GetString("value"))
-				p.Equal("12345 - ", store.GetString("code - 12345"))
+				p.Equal("hi", store.GetStringValue("value"))
+				p.Equal("12345 - ", store.GetStringValue("code - 12345"))
 			},
 			Store: func() variable.Store {
 				store := variable.NewStore()

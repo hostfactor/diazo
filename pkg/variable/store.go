@@ -5,6 +5,8 @@ import (
 	"github.com/flosch/pongo2/v6"
 	"github.com/hostfactor/api/go/blueprint"
 	"github.com/hostfactor/api/go/blueprint/reaction"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"strings"
 	"sync"
 )
@@ -60,21 +62,35 @@ func FileReactionTemplateDataEntries(v *reaction.FileReactionTemplateData) []*En
 	return entries
 }
 
+func VariableEntries(vars ...*blueprint.Variable) []*Entry {
+	e := make([]*Entry, 0, len(vars))
+	for _, v := range vars {
+		e = append(e, &Entry{
+			Key:         v.GetName(),
+			Val:         v.GetValue(),
+			DisplayName: v.GetDisplayName(),
+		})
+	}
+	return e
+}
+
 type Store interface {
 	fmt.Stringer
-	GetString(key string) string
+	GetStringValue(key string) string
+	Get(key string) *blueprint.Variable
 	RemoveVariable(vars ...*blueprint.Variable)
 	AddFileTemplateData(d ...*reaction.FileReactionTemplateData)
 	AddLogTemplateData(d ...*reaction.LogReactionTemplateData)
 	AddVariable(vars ...*blueprint.Variable)
 	AddEntries(entries ...*Entry)
-	Range(f func(key interface{}, value interface{}) bool)
+	Range(f func(key string, value *blueprint.Variable) bool)
 	Len() int
 }
 
 type Entry struct {
-	Key string
-	Val interface{}
+	Key         string
+	Val         interface{}
+	DisplayName string
 }
 
 func NewEntry(key string, val interface{}) *Entry {
@@ -84,13 +100,26 @@ func NewEntry(key string, val interface{}) *Entry {
 	}
 }
 
+type storeValue struct {
+	Variable *blueprint.Variable
+	RawValue interface{}
+}
+
 type store struct {
 	Map sync.Map
 }
 
+func (s *store) Get(key string) *blueprint.Variable {
+	out, ok := s.Map.Load(key)
+	if !ok {
+		return nil
+	}
+	return out.(*storeValue).Variable
+}
+
 func (s *store) Len() int {
 	l := 0
-	s.Range(func(_ interface{}, _ interface{}) bool {
+	s.Range(func(_ string, _ *blueprint.Variable) bool {
 		l++
 		return true
 	})
@@ -99,12 +128,27 @@ func (s *store) Len() int {
 
 func (s *store) AddEntries(entries ...*Entry) {
 	for _, v := range entries {
-		s.Map.Store(v.Key, v.Val)
+		out := &storeValue{
+			Variable: &blueprint.Variable{
+				Name:        v.Key,
+				Value:       fmt.Sprintf("%v", v.Val),
+				DisplayName: v.DisplayName,
+			},
+			RawValue: v.Val,
+		}
+
+		if out.Variable.DisplayName == "" {
+			out.Variable.DisplayName = cases.Title(language.English, cases.Compact).String(v.Key)
+		}
+
+		s.Map.Store(v.Key, out)
 	}
 }
 
-func (s *store) Range(f func(key interface{}, value interface{}) bool) {
-	s.Map.Range(f)
+func (s *store) Range(f func(key string, value *blueprint.Variable) bool) {
+	s.Map.Range(func(key, value interface{}) bool {
+		return f(key.(string), value.(*storeValue).Variable)
+	})
 }
 
 func (s *store) String() string {
@@ -122,14 +166,13 @@ func (s *store) AddFileTemplateData(d ...*reaction.FileReactionTemplateData) {
 	}
 }
 
-func (s *store) GetString(key string) string {
+func (s *store) GetStringValue(key string) string {
 	out, _ := s.Map.Load(key)
 	if out == nil {
 		return ""
 	}
 
-	val, _ := out.(string)
-	return val
+	return out.(*storeValue).Variable.GetValue()
 }
 
 func (s *store) AddLogTemplateData(d ...*reaction.LogReactionTemplateData) {
@@ -139,9 +182,7 @@ func (s *store) AddLogTemplateData(d ...*reaction.LogReactionTemplateData) {
 }
 
 func (s *store) AddVariable(vars ...*blueprint.Variable) {
-	for _, v := range vars {
-		s.Map.Store(v.GetName(), v.GetValue())
-	}
+	s.AddEntries(VariableEntries(vars...)...)
 }
 
 func (s *store) RemoveVariable(vars ...*blueprint.Variable) {
@@ -150,10 +191,16 @@ func (s *store) RemoveVariable(vars ...*blueprint.Variable) {
 	}
 }
 
+func (s *store) rawRange(f func(key string, val *storeValue) bool) {
+	s.Map.Range(func(key, value interface{}) bool {
+		return f(key.(string), value.(*storeValue))
+	})
+}
+
 func toPongoContext(s Store, entries ...*Entry) pongo2.Context {
 	ctx := pongo2.Context{}
-	s.Range(func(k, v interface{}) bool {
-		ctx[k.(string)] = v
+	s.(*store).rawRange(func(k string, v *storeValue) bool {
+		ctx[k] = v.RawValue
 		return true
 	})
 
