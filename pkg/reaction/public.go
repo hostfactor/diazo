@@ -2,7 +2,6 @@ package reaction
 
 import (
 	"context"
-	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/app"
 	"github.com/hostfactor/api/go/blueprint"
@@ -85,8 +84,6 @@ func ExecuteLog(ctx context.Context, logPath string, store variable.Store, appCl
 	}
 
 	return WatchLog(ctx, logPath, func(line string, lineNum int) {
-		fmt.Println(line)
-
 		if opts.Watcher != nil {
 			opts.Watcher(line, lineNum)
 		}
