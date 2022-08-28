@@ -2,6 +2,7 @@ package reaction
 
 import (
 	"context"
+	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/app"
 	"github.com/hostfactor/api/go/blueprint"
@@ -44,6 +45,22 @@ type ExecuteLogOpts struct {
 
 type StatusChangeFunc func(s actions.SetStatus_Status)
 
+// ReadyCheckAndLoggerToLogReaction maintains backwards compatibility with the old ready check system and the new one.
+func ReadyCheckAndLoggerToLogReaction(rc *blueprint.ReadyCheck) *reaction.LogReaction {
+	return &reaction.LogReaction{
+		When: &reaction.LogReactionCondition{
+			Matches: &reaction.LogMatcher{
+				Regex: rc.GetRegex(),
+			},
+		},
+		Then: &reaction.LogReactionAction{
+			SetStatus: &actions.SetStatus{
+				Status: actions.SetStatus_ready,
+			},
+		},
+	}
+}
+
 func ExecuteLog(ctx context.Context, logPath string, store variable.Store, appClient app.AppServiceClient, rx []*reaction.LogReaction, opts ExecuteLogOpts) error {
 	type val struct {
 		Regex *regexp.Regexp
@@ -68,6 +85,8 @@ func ExecuteLog(ctx context.Context, logPath string, store variable.Store, appCl
 	}
 
 	return WatchLog(ctx, logPath, func(line string, lineNum int) {
+		fmt.Println(line)
+
 		if opts.Watcher != nil {
 			opts.Watcher(line, lineNum)
 		}
