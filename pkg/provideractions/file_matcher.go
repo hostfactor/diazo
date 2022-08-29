@@ -1,6 +1,7 @@
 package provideractions
 
 import (
+	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 )
 
@@ -19,4 +20,13 @@ func GlobMatcher(globs ...string) *filesystem.FileMatcher {
 // RegexMatcher creates an filesystem.FileMatcher_Regex which matches all files that match the regex.
 func RegexMatcher(regex string) *filesystem.FileMatcher {
 	return &filesystem.FileMatcher{Regex: regex}
+}
+
+func NewSetVariable(name, value, displayName string, save bool) *actions.SetVariable {
+	return &actions.SetVariable{
+		Name:        name,
+		Value:       value,
+		DisplayName: displayName,
+		Save:        save,
+	}
 }
