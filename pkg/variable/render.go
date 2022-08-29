@@ -6,7 +6,7 @@ import (
 )
 
 func RenderString(og string, store Store, entries ...*Entry) string {
-	og = replaceVarsDeprecated(og, store)
+	og = replaceVarsDeprecated(og, store, entries...)
 	temp, err := pongo2.FromString(og)
 	if err != nil {
 		return og
@@ -19,12 +19,13 @@ func RenderString(og string, store Store, entries ...*Entry) string {
 	return out
 }
 
-func replaceVarsDeprecated(og string, store Store) string {
+func replaceVarsDeprecated(og string, store Store, entries ...*Entry) string {
+	s := CombineEntries(store, entries...)
 	return strings.NewReplacer(
-		"${dir}", store.GetStringValue("dir"),
-		"${abs}", store.GetStringValue("abs"),
-		"${filename}", store.GetStringValue("filename"),
-		"${name}", store.GetStringValue("name"),
-		"${ext}", store.GetStringValue("ext"),
+		"${dir}", s.GetStringValue("dir"),
+		"${abs}", s.GetStringValue("abs"),
+		"${filename}", s.GetStringValue("filename"),
+		"${name}", s.GetStringValue("name"),
+		"${ext}", s.GetStringValue("ext"),
 	).Replace(og)
 }

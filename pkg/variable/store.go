@@ -18,6 +18,18 @@ func NewStore(vars ...*blueprint.Variable) Store {
 	return out
 }
 
+func CombineEntries(s Store, e ...*Entry) EntryStore {
+	m := map[string]*Entry{}
+	for i, v := range e {
+		m[v.Key] = e[i]
+	}
+
+	return &combinedStore{
+		Store:    s,
+		EntryMap: m,
+	}
+}
+
 func LogReactionTemplateDataEntries(l *reaction.LogReactionTemplateData) []*Entry {
 	entries := make([]*Entry, 0, 3)
 	entries = append(entries, &Entry{
@@ -74,9 +86,18 @@ func VariableEntries(vars ...*blueprint.Variable) []*Entry {
 	return e
 }
 
+type EntryStore interface {
+	StringValueGetter
+}
+
+type StringValueGetter interface {
+	GetStringValue(key string) string
+}
+
 type Store interface {
 	fmt.Stringer
-	GetStringValue(key string) string
+	StringValueGetter
+
 	Get(key string) *blueprint.Variable
 	RemoveVariable(vars ...*blueprint.Variable)
 	AddFileTemplateData(d ...*reaction.FileReactionTemplateData)
@@ -103,6 +124,26 @@ func NewEntry(key string, val interface{}) *Entry {
 type storeValue struct {
 	Variable *blueprint.Variable
 	RawValue interface{}
+}
+
+type combinedStore struct {
+	Store
+	EntryMap map[string]*Entry
+}
+
+func (c *combinedStore) GetStringValue(key string) string {
+	out := c.Store.GetStringValue(key)
+	if out != "" {
+		return out
+	}
+
+	o := c.EntryMap[key]
+	if o != nil {
+		s, _ := o.Val.(string)
+		return s
+	}
+
+	return ""
 }
 
 type store struct {

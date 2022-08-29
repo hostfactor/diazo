@@ -175,20 +175,24 @@ func (p *PublicTestSuite) TestExecuteLog() {
 			},
 			Reactions: []*reaction.LogReaction{
 				{
-					When: &reaction.LogReactionCondition{
-						Matches: &reaction.LogMatcher{
-							Regex: "is ready: (\\d+)",
+					When: []*reaction.LogReactionCondition{
+						{
+							Matches: &reaction.LogMatcher{
+								Regex: "is ready: (\\d+)",
+							},
 						},
 					},
-					Then: &reaction.LogReactionAction{
-						SetVariable: &actions.SetVariable{
-							Name:        "code - {{matches.0}}",
-							Value:       "{{first_match}} - {{matches.1}}",
-							Save:        true,
-							DisplayName: "Code {{value}}",
-						},
-						SetStatus: &actions.SetStatus{
-							Status: actions.SetStatus_ready,
+					Then: []*reaction.LogReactionAction{
+						{
+							SetVariable: &actions.SetVariable{
+								Name:        "code - {{matches.0}}",
+								Value:       "{{first_match}} - {{matches.1}}",
+								Save:        true,
+								DisplayName: "Code {{value}}",
+							},
+							SetStatus: &actions.SetStatus{
+								Status: actions.SetStatus_ready,
+							},
 						},
 					},
 				},
