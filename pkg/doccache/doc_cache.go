@@ -21,10 +21,11 @@ func New(f fs.FS, pr *providerconfig.ProviderConfig) (DocCache, error) {
 	for _, v := range pr.GetDocs().GetEntries() {
 		var content []byte
 		var err error
+		p := filepath.Clean(v.GetPath())
 		if filepath.IsAbs(v.GetPath()) {
-			content, err = os.ReadFile(v.GetPath())
+			content, err = os.ReadFile(p)
 		} else {
-			content, err = fs.ReadFile(f, v.GetPath())
+			content, err = fs.ReadFile(f, p)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read doc entry %s: %w", v.GetPath(), err)

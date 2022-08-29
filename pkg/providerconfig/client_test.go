@@ -26,6 +26,10 @@ func (p *ClientTestSuite) TestLoad() {
 			Data: []byte(`
 title: minecraft
 image: itzg/minecraft-server
+docs:
+  entries:
+    - title: Getting started
+      path: ./docs/getting_started.md
 volumes:
   - name: derp
     mount:
@@ -43,12 +47,25 @@ volumes:
 		"settings.json": {
 			Data: expectedSettings,
 		},
+		"docs/getting_started.md": {
+			Data: []byte(`
+# Getting started			
+			`),
+		},
 	}
 
 	expected := &LoadedProviderConfig{
 		Config: &providerconfig.ProviderConfig{
 			Title: "minecraft",
 			Image: "itzg/minecraft-server",
+			Docs: &providerconfig.Docs{
+				Entries: []*providerconfig.Docs_Entry{
+					{
+						Title: "Getting started",
+						Path:  "./docs/getting_started.md",
+					},
+				},
+			},
 			Volumes: []*providerconfig.Volume{
 				{
 					Name:  "derp",
