@@ -141,6 +141,12 @@ func UploadSaveFile(from string, filename string) FileReactionActionBuilder {
 	return newFileReactionActionBuilder().Upload(from, filename, "saves")
 }
 
+func NewFileReactionActionBuilder() FileReactionActionBuilder {
+	return &fileReactionActionBuilder{
+		Action: &reaction.FileReactionAction{},
+	}
+}
+
 type fileReactionActionBuilder struct {
 	Action *reaction.FileReactionAction
 }
