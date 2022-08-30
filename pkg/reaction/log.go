@@ -187,8 +187,8 @@ func CompileLogConditions(conds ...*reaction.LogReactionCondition) ([]*CompiledL
 	return out, nil
 }
 
-// ReadyCheckAndLoggerToLogReaction maintains backwards compatibility with the old ready check system and the new one.
-func ReadyCheckAndLoggerToLogReaction(rc *blueprint.ReadyCheck) *reaction.LogReaction {
+// ReadyCheckToLogReaction maintains backwards compatibility with the old ready check system and the new one.
+func ReadyCheckToLogReaction(rc *blueprint.ReadyCheck) *reaction.LogReaction {
 	return &reaction.LogReaction{
 		When: []*reaction.LogReactionCondition{
 			{
