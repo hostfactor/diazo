@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/hostfactor/api/go/app"
 	"github.com/hostfactor/api/go/blueprint/actions"
+	"github.com/hostfactor/diazo/pkg/envvar"
 	"github.com/hostfactor/diazo/pkg/variable"
 )
 
@@ -16,6 +17,7 @@ func SetVariable(client app.AppServiceClient, store variable.Store, act *actions
 			Name:        name,
 			Value:       value,
 			DisplayName: variable.RenderString(act.GetDisplayName(), store, entries...),
+			Id:          envvar.ServerId,
 		})
 		if err != nil {
 			return err
