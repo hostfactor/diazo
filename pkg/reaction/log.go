@@ -30,15 +30,14 @@ type LogLine struct {
 	Num  int
 }
 
-func WatchLog(ctx context.Context, fp string, callback WatchLogFunc) (chan LogLine, error) {
+func WatchLog(ctx context.Context, fp string, callback WatchLogFunc) error {
 	tailer, err := tail.TailFile(fp, tail.Config{
 		Follow: true,
 		Logger: logrus.StandardLogger(),
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	c := make(chan LogLine, 1)
 
 	go func() {
 		for {
@@ -48,19 +47,15 @@ func WatchLog(ctx context.Context, fp string, callback WatchLogFunc) (chan LogLi
 				logrus.WithError(err).WithField("log", fp).Info("Stopping log watcher.")
 				return
 			case line := <-tailer.Lines:
-				ll := LogLine{
+				callback(LogLine{
 					Text: line.Text,
 					Num:  line.Num,
-				}
-				if callback != nil {
-					callback(ll)
-				}
-				c <- ll
+				})
 			}
 		}
 	}()
 
-	return c, nil
+	return nil
 }
 
 func ExecuteLog(ctx context.Context, logPath string, store variable.Store, appClient app.AppServiceClient, rx []*reaction.LogReaction, opts ExecuteLogOpts) error {
@@ -69,14 +64,12 @@ func ExecuteLog(ctx context.Context, logPath string, store variable.Store, appCl
 		return err
 	}
 
-	_, err = WatchLog(ctx, logPath, func(ll LogLine) {
+	return WatchLog(ctx, logPath, func(ll LogLine) {
 		err := ReactToLog(ll, store, appClient, matchers, opts)
 		if err != nil {
 			logrus.WithError(err).Error("Failed to execute log action.")
 		}
 	})
-
-	return nil
 }
 
 func ReactToLog(l LogLine, store variable.Store, appClient app.AppServiceClient, rx []*CompiledLogReaction, opts ExecuteLogOpts) error {
