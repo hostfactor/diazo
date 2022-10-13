@@ -76,6 +76,30 @@ func (p *PublicTestSuite) TestFsPathSubMapFS() {
 	p.Equal("the/path", actual)
 }
 
+func (p *PublicTestSuite) TestFilename() {
+	type test struct {
+		Given    string
+		Expected string
+	}
+
+	tests := []test{
+		{
+			Given:    "I_FONE.wld.zip",
+			Expected: "I_FONE",
+		},
+		{
+			Given:    "I_FONE.zip",
+			Expected: "I_FONE",
+		},
+		{},
+	}
+
+	for i, v := range tests {
+		actual := Filename(v.Given)
+		p.Equal(v.Expected, actual, "test %d. given %s", i, v.Given)
+	}
+}
+
 func TestPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(PublicTestSuite))
 }

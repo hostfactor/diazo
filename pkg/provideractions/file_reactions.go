@@ -131,7 +131,7 @@ func ZipFolder(to string, entries ...*actions.ZipFileEntry) FileReactionActionBu
 }
 
 func UploadSaveFile(from string, filename string) FileReactionActionBuilder {
-	fn, _ := fileutils.SplitFile(filename)
+	fn := fileutils.Filename(filename)
 	if !strings.HasSuffix(fn, "_autosave") {
 		filename = fn + "_autosave"
 	} else {

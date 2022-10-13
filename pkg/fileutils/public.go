@@ -25,6 +25,18 @@ func SplitFile(f string) (filename, ext string) {
 	return f[0 : len(f)-len(ext)], ext
 }
 
+func Filename(f string) string {
+	if f == "" {
+		return ""
+	}
+
+	ss := strings.Split(f, ".")
+	if len(ss) > 0 {
+		return ss[0]
+	}
+	return ""
+}
+
 // MoveFile moves the file from src to dst while retaining permissions. src should be the relative path of f.
 // dst should be an absolute path.
 func MoveFile(f fs.FS, src, dst string) error {
