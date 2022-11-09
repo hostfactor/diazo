@@ -77,14 +77,16 @@ func ReactToLog(l LogLine, store variable.Store, appClient app.AppServiceClient,
 		opts.Watcher(l)
 	}
 
-	react, m := FirstMatch(l.Text, rx...)
-	if len(m) == 0 {
+	matches := AllMatches(l.Text, rx...)
+	if len(matches) == 0 {
 		return nil
 	}
 
-	err := ExecuteLogActions(l.Text, appClient, store, m, opts, react.Then...)
-	if err != nil {
-		return err
+	for _, match := range matches {
+		err := ExecuteLogActions(l.Text, appClient, store, match.RegexMatches, opts, match.Reaction.Then...)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -107,16 +109,25 @@ func (c *CompiledLogCondition) Matches(line string) []string {
 	return nil
 }
 
-func FirstMatch(line string, reactions ...*CompiledLogReaction) (*CompiledLogReaction, []string) {
-	for _, r := range reactions {
+type LogMatch struct {
+	Reaction     *CompiledLogReaction
+	RegexMatches []string
+}
+
+func AllMatches(line string, reactions ...*CompiledLogReaction) []*LogMatch {
+	matches := make([]*LogMatch, 0, len(reactions))
+	for i, r := range reactions {
 		for _, v := range r.When {
 			out := v.Matches(line)
 			if len(out) > 0 {
-				return r, out
+				matches = append(matches, &LogMatch{
+					Reaction:     reactions[i],
+					RegexMatches: out,
+				})
 			}
 		}
 	}
-	return nil, nil
+	return matches
 }
 
 func ExecuteLogActions(line string, appClient app.AppServiceClient, store variable.Store, m []string, opts ExecuteLogOpts, a ...*reaction.LogReactionAction) error {

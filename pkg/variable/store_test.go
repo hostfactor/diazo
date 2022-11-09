@@ -1,6 +1,8 @@
 package variable
 
 import (
+	"bytes"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
@@ -22,6 +24,30 @@ func (s *StoreTestSuite) TestStructValue() {
 	// -- When
 	//
 	actual := RenderString("hi {{derp.dorp}}", given)
+
+	// -- Then
+	//
+	s.Equal(expected, actual)
+}
+
+func (s *StoreTestSuite) TestStringInterface() {
+	// -- Given
+	//
+	vals := `{"hello": {"nested": 1}}`
+	out := map[string]interface{}{}
+	dec := jsoniter.NewDecoder(bytes.NewBufferString(vals))
+	dec.UseNumber()
+	_ = dec.Decode(&out)
+	given := NewStore()
+	given.AddEntries(&Entry{
+		Key: "derp",
+		Val: out,
+	})
+	expected := "hi 1"
+
+	// -- When
+	//
+	actual := RenderString("hi {{derp.hello.nested}}", given)
 
 	// -- Then
 	//
