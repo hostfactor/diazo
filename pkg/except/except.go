@@ -36,6 +36,28 @@ func NewFromGRPCStatus(s *status.Status) error {
 	}
 }
 
+func Is(err error, reasons ...exception.Reason) bool {
+	for _, v := range reasons {
+		if ReasonFromErr(err) == v {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ReasonFromErr(err error) exception.Reason {
+	if err != nil {
+		return exception.Reason_REASON_UNKNOWN
+	}
+
+	v, ok := err.(*except)
+	if ok {
+		return v.Reason
+	}
+	return exception.Reason_REASON_INTERNAL
+}
+
 func NewFromGRPC(err error) error {
 	if err == nil {
 		return nil
