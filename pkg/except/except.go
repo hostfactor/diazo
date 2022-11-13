@@ -5,6 +5,7 @@ import (
 	"github.com/hostfactor/api/go/exception"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"net/http"
 )
 
 var (
@@ -34,6 +35,44 @@ func NewFromGRPCStatus(s *status.Status) error {
 		Message: s.Message(),
 		Reason:  CodeToReason(s.Code()),
 	}
+}
+
+func ReasonToHttpStatus(reason exception.Reason) int {
+	switch reason {
+	case exception.Reason_REASON_NOT_FOUND:
+		return http.StatusNotFound
+	case exception.Reason_REASON_ALREADY_EXISTS, exception.Reason_REASON_INVALID:
+		return http.StatusBadRequest
+	case exception.Reason_REASON_TIMEOUT:
+		return http.StatusRequestTimeout
+	case exception.Reason_REASON_UNAUTHORIZED:
+		return http.StatusUnauthorized
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func ReasonFromHttpStatus(status int) exception.Reason {
+	if status >= 500 {
+		return exception.Reason_REASON_INTERNAL
+	} else if status >= 400 {
+		switch status {
+		case http.StatusNotFound:
+			return exception.Reason_REASON_NOT_FOUND
+		case http.StatusUnauthorized:
+			return exception.Reason_REASON_UNAUTHORIZED
+		case http.StatusRequestTimeout:
+			return exception.Reason_REASON_TIMEOUT
+		case http.StatusBadRequest:
+			return exception.Reason_REASON_INVALID
+		case http.StatusConflict:
+			return exception.Reason_REASON_ALREADY_EXISTS
+		default:
+			return exception.Reason_REASON_INTERNAL
+		}
+	}
+
+	return exception.Reason_REASON_UNKNOWN
 }
 
 func Is(err error, reasons ...exception.Reason) bool {
