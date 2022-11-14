@@ -24,6 +24,30 @@ func New(reason exception.Reason, msg string, args ...any) error {
 	}
 }
 
+func NewNotFound(msg string, args ...any) error {
+	return New(exception.Reason_REASON_NOT_FOUND, msg, args...)
+}
+
+func NewNotAlreadyExists(msg string, args ...any) error {
+	return New(exception.Reason_REASON_ALREADY_EXISTS, msg, args...)
+}
+
+func NewInternal(msg string, args ...any) error {
+	return New(exception.Reason_REASON_INTERNAL, msg, args...)
+}
+
+func NewTimeout(msg string, args ...any) error {
+	return New(exception.Reason_REASON_TIMEOUT, msg, args...)
+}
+
+func NewUnauthorized(msg string, args ...any) error {
+	return New(exception.Reason_REASON_UNAUTHORIZED, msg, args...)
+}
+
+func NewInvalid(msg string, args ...any) error {
+	return New(exception.Reason_REASON_INVALID, msg, args...)
+}
+
 func NewBlank(reason exception.Reason) error {
 	return &except{
 		Reason: reason,
@@ -76,8 +100,9 @@ func ReasonFromHttpStatus(status int) exception.Reason {
 }
 
 func Is(err error, reasons ...exception.Reason) bool {
+	reason := ReasonFromErr(err)
 	for _, v := range reasons {
-		if ReasonFromErr(err) == v {
+		if reason == v {
 			return true
 		}
 	}
