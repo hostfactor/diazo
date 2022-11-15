@@ -111,7 +111,7 @@ func Is(err error, reasons ...exception.Reason) bool {
 }
 
 func ReasonFromErr(err error) exception.Reason {
-	if err != nil {
+	if err == nil {
 		return exception.Reason_REASON_UNKNOWN
 	}
 
