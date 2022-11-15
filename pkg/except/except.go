@@ -61,6 +61,14 @@ func NewFromGRPCStatus(s *status.Status) error {
 	}
 }
 
+func ToGRPCStatus(err error) *status.Status {
+	v, ok := err.(*except)
+	if !ok {
+		return status.Newf(ReasonToCode(exception.Reason_REASON_INTERNAL), err.Error())
+	}
+	return status.Newf(ReasonToCode(v.Reason), v.Message)
+}
+
 func ReasonToHttpStatus(reason exception.Reason) int {
 	switch reason {
 	case exception.Reason_REASON_NOT_FOUND:
