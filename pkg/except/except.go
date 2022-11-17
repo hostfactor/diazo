@@ -18,7 +18,7 @@ var (
 )
 
 func New(reason exception.Reason, msg string, args ...any) error {
-	return &except{
+	return &Error{
 		Message: fmt.Sprintf(msg, args...),
 		Reason:  reason,
 	}
@@ -49,20 +49,20 @@ func NewInvalid(msg string, args ...any) error {
 }
 
 func NewBlank(reason exception.Reason) error {
-	return &except{
+	return &Error{
 		Reason: reason,
 	}
 }
 
 func NewFromGRPCStatus(s *status.Status) error {
-	return &except{
+	return &Error{
 		Message: s.Message(),
 		Reason:  CodeToReason(s.Code()),
 	}
 }
 
 func ToGRPC(err error) error {
-	v, ok := err.(*except)
+	v, ok := err.(*Error)
 	if !ok {
 		return status.Error(ReasonToCode(exception.Reason_REASON_INTERNAL), err.Error())
 	}
@@ -123,7 +123,7 @@ func ReasonFromErr(err error) exception.Reason {
 		return exception.Reason_REASON_UNKNOWN
 	}
 
-	v, ok := err.(*except)
+	v, ok := err.(*Error)
 	if ok {
 		return v.Reason
 	}
@@ -135,7 +135,7 @@ func NewFromGRPC(err error) error {
 		return nil
 	}
 
-	r := &except{
+	r := &Error{
 		Message: "Internal error",
 		Reason:  exception.Reason_REASON_INTERNAL,
 	}
@@ -181,17 +181,17 @@ func CodeToReason(code codes.Code) exception.Reason {
 	}
 }
 
-var _ error = &except{}
-var _ ErrorIser = &except{}
-var _ fmt.Stringer = &except{}
+var _ error = &Error{}
+var _ ErrorIser = &Error{}
+var _ fmt.Stringer = &Error{}
 
 type ErrorIser interface {
 	Is(err error) bool
 }
 
-type except exception.Error
+type Error exception.Error
 
-func (e *except) String() string {
+func (e *Error) String() string {
 	if e == nil {
 		return ""
 	}
@@ -203,12 +203,12 @@ func (e *except) String() string {
 	return fmt.Sprintf("%s: %s", e.Message, Reason(e.Reason).String())
 }
 
-func (e *except) Is(err error) bool {
+func (e *Error) Is(err error) bool {
 	if e == nil {
 		return false
 	}
 
-	v, ok := err.(*except)
+	v, ok := err.(*Error)
 	if !ok {
 		return false
 	}
@@ -216,14 +216,14 @@ func (e *except) Is(err error) bool {
 	return v.Reason == e.Reason
 }
 
-func (e *except) ToException() *exception.Error {
+func (e *Error) ToException() *exception.Error {
 	return &exception.Error{
 		Message: e.Message,
 		Reason:  e.Reason,
 	}
 }
 
-func (e *except) Error() string {
+func (e *Error) Error() string {
 	return e.String()
 }
 
