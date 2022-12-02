@@ -63,6 +63,9 @@ func NewFromGRPCStatus(s *status.Status) error {
 
 func ToGRPC(err error) error {
 	v, ok := err.(*Error)
+	if v == nil {
+		return nil
+	}
 	if !ok {
 		return status.Error(ReasonToCode(exception.Reason_REASON_INTERNAL), err.Error())
 	}
@@ -124,6 +127,10 @@ func ReasonFromErr(err error) exception.Reason {
 	}
 
 	v, ok := err.(*Error)
+	if v == nil {
+		return exception.Reason_REASON_UNKNOWN
+	}
+
 	if ok {
 		return v.Reason
 	}
