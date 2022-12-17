@@ -136,6 +136,12 @@ func ExecuteLogActions(line string, appClient app.AppServiceClient, store variab
 	}
 
 	for _, act := range a {
+		logrus.
+			WithField("variable_store", store.String()).
+			WithField("action", act.String()).
+			WithField("line", line).
+			WithField("matches", m).
+			Debug("Executing log action.")
 		if v := act.GetSetVariable(); v != nil {
 			if len(m) > 1 {
 				m = m[1:]
