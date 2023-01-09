@@ -44,6 +44,12 @@ type ServerOpts struct {
 	KeyResolver KeyResolver
 }
 
+func WithKeyResolver(r KeyResolver) opts.Opt[ServerOpts] {
+	return func(s *ServerOpts) {
+		s.KeyResolver = r
+	}
+}
+
 func (s ServerOpts) DefaultOptions() ServerOpts {
 	return ServerOpts{
 		KeyResolver: func(key string) string {
