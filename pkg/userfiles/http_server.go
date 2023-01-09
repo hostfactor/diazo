@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/eddieowens/opts"
 	"io"
 	"io/fs"
 	"mime"
@@ -19,9 +20,10 @@ type Server interface {
 }
 
 type HttpServer struct {
-	server  *http.Server
-	BaseDir string
-	FS      fs.FS
+	server     *http.Server
+	BaseDir    string
+	FS         fs.FS
+	ServerOpts ServerOpts
 
 	OnErrorFunc OnErrorFunc
 }
@@ -36,12 +38,29 @@ func (h *HttpServer) ListenAndServe() error {
 	return h.server.ListenAndServe()
 }
 
-func NewServer(addr, baseDir string, f fs.FS) *HttpServer {
+type KeyResolver func(key string) string
+
+type ServerOpts struct {
+	KeyResolver KeyResolver
+}
+
+func (s ServerOpts) DefaultOptions() ServerOpts {
+	return ServerOpts{
+		KeyResolver: func(key string) string {
+			return key
+		},
+	}
+}
+
+func NewServer(addr, baseDir string, f fs.FS, o ...opts.Opt[ServerOpts]) *HttpServer {
+	op := opts.DefaultApply(o...)
+
 	out := &HttpServer{
 		server:      &http.Server{Addr: addr},
 		BaseDir:     baseDir,
 		FS:          f,
 		OnErrorFunc: func(_ error, _ *http.Request) {},
+		ServerOpts:  op,
 	}
 
 	mux := http.NewServeMux()
@@ -110,6 +129,8 @@ func (h *HttpServer) FetchFileHandler(w http.ResponseWriter, req *http.Request) 
 		h.OnErrorFunc(errors.New("query param fp required"), req)
 		return
 	}
+
+	fp = h.ServerOpts.KeyResolver(fp)
 
 	f, err := h.FS.Open(fp)
 	if err != nil {
