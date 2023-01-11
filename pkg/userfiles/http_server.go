@@ -126,6 +126,8 @@ func (h *HttpServer) CreateFileWriterHandler(w http.ResponseWriter, req *http.Re
 		h.OnErrorFunc(err, req)
 		return
 	}
+	defer f.Close()
+
 	_, err = io.Copy(f, req.Body)
 	if err != nil {
 		resp := &ErrorResponse{Message: fmt.Sprintf("Failed to upload file %s: %s", keyPath, err.Error())}
