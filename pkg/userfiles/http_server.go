@@ -113,7 +113,9 @@ func (h *HttpServer) CreateFileWriterHandler(w http.ResponseWriter, req *http.Re
 		return
 	}
 	_ = os.MkdirAll(filepath.Join(h.BaseDir, filepath.Dir(fp)), os.ModePerm)
-	keyPath := filepath.Join(h.BaseDir, fp)
+
+	keyPath := h.ServerOpts.KeyResolver(filepath.Join(h.BaseDir, fp))
+
 	f, err := h.ServerOpts.BlobCreator.CreateBlob(keyPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
