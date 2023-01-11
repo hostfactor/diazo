@@ -42,6 +42,13 @@ type KeyResolver func(key string) string
 
 type ServerOpts struct {
 	KeyResolver KeyResolver
+	BlobCreator BlobCreator
+}
+
+func WithBlobCreator(c BlobCreator) opts.Opt[ServerOpts] {
+	return func(s *ServerOpts) {
+		s.BlobCreator = c
+	}
 }
 
 func WithKeyResolver(r KeyResolver) opts.Opt[ServerOpts] {
@@ -55,6 +62,7 @@ func (s ServerOpts) DefaultOptions() ServerOpts {
 		KeyResolver: func(key string) string {
 			return key
 		},
+		BlobCreator: &FileBlobCreator{},
 	}
 }
 
@@ -106,7 +114,7 @@ func (h *HttpServer) CreateFileWriterHandler(w http.ResponseWriter, req *http.Re
 	}
 	_ = os.MkdirAll(filepath.Join(h.BaseDir, filepath.Dir(fp)), os.ModePerm)
 	keyPath := filepath.Join(h.BaseDir, fp)
-	f, err := os.Create(keyPath)
+	f, err := h.ServerOpts.BlobCreator.CreateBlob(keyPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			w.WriteHeader(http.StatusNotFound)
