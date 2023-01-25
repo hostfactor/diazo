@@ -2,6 +2,17 @@ package ptr
 
 import "time"
 
+func Ptr[T any](t T) *T {
+	return &t
+}
+
+func Deref[T any](t *T) (out T) {
+	if t == nil {
+		return out
+	}
+	return *t
+}
+
 func String(v string) *string {
 	return &v
 }
