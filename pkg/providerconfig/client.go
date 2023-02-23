@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/hostfactor/api/go/blueprint"
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/hostfactor/diazo/pkg/doccache"
 	jsoniter "github.com/json-iterator/go"
@@ -12,26 +13,65 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/fs"
 	"path/filepath"
+	"regexp"
 )
 
 var DefaultClient = NewClient()
 
 var (
 	DefaultProviderFilename = "provider.yaml"
-	DefaultSettingsFilename = "settings.json"
 )
 
 type LoadedProviderConfig struct {
-	Config         *providerconfig.ProviderConfig
-	SettingsSchema *gojsonschema.Schema
+	Config *providerconfig.ProviderConfig
+	// schemas by step IDs
+	SettingsSchema map[string]*CompiledStep
 	DocCache       doccache.DocCache
-	RawSettings    []byte
 	Filename       string
+}
+
+type Validator interface {
+	Validate(val *blueprint.Value) error
+}
+
+type CompiledStep struct {
+	Step          *providerconfig.Step
+	JSONSchema    *gojsonschema.Schema
+	RawJSONSchema string
+	Validation    *CompiledStepValidation
+}
+
+func (c *CompiledStep) Validate(val *blueprint.Value) error {
+	err := c.Validation.Validate(val)
+	if err != nil {
+		return err
+	}
+
+	if val.GetStringValue() != "" {
+		_, err = c.JSONSchema.Validate(gojsonschema.NewStringLoader(val.GetStringValue()))
+	}
+
+	return err
+}
+
+type CompiledStepValidation struct {
+	Regex   *regexp.Regexp
+	Message string
+}
+
+func (c *CompiledStepValidation) Validate(val *blueprint.Value) error {
+	if val.GetStringValue() != "" {
+		if !c.Regex.MatchString(val.GetStringValue()) {
+			return errors.New(c.Message)
+		}
+	}
+
+	return nil
 }
 
 type Client interface {
 	// Load loads a single LoadedProviderConfig from the specified directory.
-	Load(f fs.FS, providerFilename, settingsFilename string) (*LoadedProviderConfig, error)
+	Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, error)
 
 	// LoadAll loads all provider configs within the directory. Assumes that every Provider directory is housed as a child
 	// directory of the specified fs.FS.
@@ -46,7 +86,7 @@ func NewClient() Client {
 }
 
 func Load(f fs.FS) (*LoadedProviderConfig, error) {
-	return DefaultClient.Load(f, DefaultProviderFilename, DefaultSettingsFilename)
+	return DefaultClient.Load(f, DefaultProviderFilename)
 }
 
 type client struct {
@@ -69,7 +109,7 @@ func (c *client) LoadAll(f fs.FS) ([]*LoadedProviderConfig, error) {
 			return nil, err
 		}
 
-		conf, err := c.Load(sub, DefaultProviderFilename, DefaultSettingsFilename)
+		conf, err := c.Load(sub, DefaultProviderFilename)
 		if err != nil {
 			return nil, err
 		}
@@ -81,23 +121,11 @@ func (c *client) LoadAll(f fs.FS) ([]*LoadedProviderConfig, error) {
 	return confs, nil
 }
 
-func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*LoadedProviderConfig, error) {
+func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, error) {
 	var err error
 	out := &LoadedProviderConfig{
-		Filename: providerFilename,
-	}
-	out.RawSettings, err = fs.ReadFile(f, settingsFilename)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("%s was not found. A JSON schema file is required for every provider", settingsFilename)
-		}
-		return nil, err
-	}
-
-	loader := gojsonschema.NewBytesLoader(out.RawSettings)
-	out.SettingsSchema, err = gojsonschema.NewSchema(loader)
-	if err != nil {
-		return nil, fmt.Errorf("invalid %s JSON schema file: %s", settingsFilename, err.Error())
+		Filename:       providerFilename,
+		SettingsSchema: map[string]*CompiledStep{},
 	}
 
 	out.Config, err = c.LoadProviderFile(f, providerFilename)
@@ -108,6 +136,42 @@ func (c *client) Load(f fs.FS, providerFilename, settingsFilename string) (*Load
 	out.DocCache, err = doccache.New(f, out.Config)
 	if err != nil {
 		return nil, err
+	}
+
+	for i := range out.Config.GetAppSettings().GetSteps() {
+		step := out.Config.GetAppSettings().GetSteps()[i]
+		compiled := &CompiledStep{
+			Step: step,
+		}
+
+		if step.GetValidation().GetRegex() != "" {
+			reg, err := regexp.Compile(step.GetValidation().GetRegex())
+			if err != nil {
+				return nil, fmt.Errorf("invalid regex validation for step \"%s\": %w", step.GetId(), err)
+			}
+
+			compiled.Validation = &CompiledStepValidation{
+				Regex:   reg,
+				Message: step.GetValidation().GetMessage(),
+			}
+		}
+
+		if step.GetJsonSchema().GetPath() != "" {
+			rawSettings, err := fs.ReadFile(f, step.GetJsonSchema().GetPath())
+			if err != nil {
+				return nil, fmt.Errorf("failed to load json schema for step \"%s\": %w", step.GetId(), err)
+			}
+
+			loader := gojsonschema.NewBytesLoader(rawSettings)
+			compiled.JSONSchema, err = gojsonschema.NewSchema(loader)
+			if err != nil {
+				return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
+			}
+
+			compiled.RawJSONSchema = string(rawSettings)
+		}
+
+		out.SettingsSchema[step.GetId()] = compiled
 	}
 
 	return out, nil

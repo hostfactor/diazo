@@ -16,13 +16,13 @@ type Client struct {
 	mock.Mock
 }
 
-// Load provides a mock function with given fields: f, providerFilename, settingsFilename
-func (_m *Client) Load(f fs.FS, providerFilename string, settingsFilename string) (*providerconfig.LoadedProviderConfig, error) {
-	ret := _m.Called(f, providerFilename, settingsFilename)
+// Load provides a mock function with given fields: f, providerFilename
+func (_m *Client) Load(f fs.FS, providerFilename string) (*providerconfig.LoadedProviderConfig, error) {
+	ret := _m.Called(f, providerFilename)
 
 	var r0 *providerconfig.LoadedProviderConfig
-	if rf, ok := ret.Get(0).(func(fs.FS, string, string) *providerconfig.LoadedProviderConfig); ok {
-		r0 = rf(f, providerFilename, settingsFilename)
+	if rf, ok := ret.Get(0).(func(fs.FS, string) *providerconfig.LoadedProviderConfig); ok {
+		r0 = rf(f, providerFilename)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*providerconfig.LoadedProviderConfig)
@@ -30,8 +30,8 @@ func (_m *Client) Load(f fs.FS, providerFilename string, settingsFilename string
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(fs.FS, string, string) error); ok {
-		r1 = rf(f, providerFilename, settingsFilename)
+	if rf, ok := ret.Get(1).(func(fs.FS, string) error); ok {
+		r1 = rf(f, providerFilename)
 	} else {
 		r1 = ret.Error(1)
 	}

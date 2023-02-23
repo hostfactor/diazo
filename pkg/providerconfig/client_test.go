@@ -30,6 +30,11 @@ docs:
   entries:
     - title: Getting started
       path: ./docs/getting_started.md
+app_settings:
+  steps:
+    - id: settings
+      json_schema:
+        path: settings.json
 volumes:
   - name: derp
     mount:
@@ -53,6 +58,8 @@ volumes:
 			`),
 		},
 	}
+
+	expectedSettingsSchema, _ := gojsonschema.NewSchema(gojsonschema.NewBytesLoader(expectedSettings))
 
 	expected := &LoadedProviderConfig{
 		Config: &providerconfig.ProviderConfig{
@@ -80,15 +87,31 @@ volumes:
 					},
 				},
 			},
+			AppSettings: &providerconfig.AppSettingsSchema{
+				Steps: []*providerconfig.Step{
+					{
+						Id: "settings",
+						JsonSchema: &providerconfig.JSONSchemaPrompt{
+							Path: "settings.json",
+						},
+					},
+				},
+			},
 		},
-		Filename:       "provider.yaml",
-		SettingsSchema: &gojsonschema.Schema{},
-		RawSettings:    expectedSettings,
+		Filename: "provider.yaml",
+	}
+
+	expected.SettingsSchema = map[string]*CompiledStep{
+		"settings": {
+			JSONSchema:    expectedSettingsSchema,
+			Step:          expected.Config.AppSettings.Steps[0],
+			RawJSONSchema: string(expectedSettings),
+		},
 	}
 
 	// -- When
 	//
-	actual, err := DefaultClient.Load(testFs, "provider.yaml", "settings.json")
+	actual, err := DefaultClient.Load(testFs, "provider.yaml")
 
 	// -- Then
 	//
@@ -124,7 +147,17 @@ func (p *ClientTestSuite) TestLoadJson() {
 				}
 			}
 		}
-	]
+	],
+"app_settings": {
+			"steps": [
+			{
+			"id": "settings",
+			"json_schema": {
+			"path": "settings.json"
+			}
+			}
+			]
+			}
 }
 `),
 		},
@@ -132,6 +165,8 @@ func (p *ClientTestSuite) TestLoadJson() {
 			Data: expectedSettings,
 		},
 	}
+
+	expectedSettingsSchema, _ := gojsonschema.NewSchema(gojsonschema.NewBytesLoader(expectedSettings))
 
 	expected := &LoadedProviderConfig{
 		Config: &providerconfig.ProviderConfig{
@@ -151,15 +186,31 @@ func (p *ClientTestSuite) TestLoadJson() {
 					},
 				},
 			},
+			AppSettings: &providerconfig.AppSettingsSchema{
+				Steps: []*providerconfig.Step{
+					{
+						Id: "settings",
+						JsonSchema: &providerconfig.JSONSchemaPrompt{
+							Path: "settings.json",
+						},
+					},
+				},
+			},
 		},
-		Filename:       "provider.json",
-		SettingsSchema: &gojsonschema.Schema{},
-		RawSettings:    expectedSettings,
+		Filename: "provider.json",
+	}
+
+	expected.SettingsSchema = map[string]*CompiledStep{
+		"settings": {
+			JSONSchema:    expectedSettingsSchema,
+			RawJSONSchema: string(expectedSettings),
+			Step:          expected.Config.AppSettings.Steps[0],
+		},
 	}
 
 	// -- When
 	//
-	actual, err := DefaultClient.Load(testFs, "provider.json", "settings.json")
+	actual, err := DefaultClient.Load(testFs, "provider.json")
 
 	// -- Then
 	//
@@ -181,7 +232,7 @@ func (p *ClientTestSuite) TestLoadMissingFile() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.yml", "settings.json")
+	actual, err := p.Target.Load(testFs, "provider.yml")
 
 	// -- Then
 	//
@@ -204,7 +255,7 @@ func (p *ClientTestSuite) TestLoadInvalidYaml() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.yaml", "settings.json")
+	actual, err := p.Target.Load(testFs, "provider.yaml")
 
 	// -- Then
 	//
@@ -226,7 +277,7 @@ func (p *ClientTestSuite) TestLoadInvalidJson() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.json", "settings.json")
+	actual, err := p.Target.Load(testFs, "provider.json")
 
 	// -- Then
 	//
@@ -239,18 +290,29 @@ func (p *ClientTestSuite) TestLoadMissingSettingsJson() {
 	//
 	testFs := fstest.MapFS{
 		"provider.json": {
-			Data: []byte(`invalid file.`),
+			Data: []byte(`{
+"app_settings": {
+			"steps": [
+			{
+			"id": "settings",
+			"json_schema": {
+			"path": "settings.json"
+			}
+			}
+			]
+			}
+			}`),
 		},
 	}
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.json", "settings.json")
+	actual, err := p.Target.Load(testFs, "provider.json")
 
 	// -- Then
 	//
 	p.Nil(actual)
-	p.EqualError(err, "settings.json was not found. A JSON schema file is required for every provider")
+	p.EqualError(err, "failed to load json schema for step \"settings\": open settings.json: file does not exist")
 }
 
 func (p *ClientTestSuite) TestLoadInvalidSettingsJson() {
@@ -258,7 +320,16 @@ func (p *ClientTestSuite) TestLoadInvalidSettingsJson() {
 	//
 	testFs := fstest.MapFS{
 		"provider.json": {
-			Data: []byte(`{}`),
+			Data: []byte(`{"app_settings": {
+			"steps": [
+			{
+			"id": "settings",
+			"json_schema": {
+			"path": "settings.json"
+			}
+			}
+			]
+			}}`),
 		},
 		"settings.json": {
 			Data: []byte(`invalid file.`),
@@ -267,12 +338,12 @@ func (p *ClientTestSuite) TestLoadInvalidSettingsJson() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.json", "settings.json")
+	actual, err := p.Target.Load(testFs, "provider.json")
 
 	// -- Then
 	//
 	p.Nil(actual)
-	p.EqualError(err, "invalid settings.json JSON schema file: invalid character 'i' looking for beginning of value")
+	p.EqualError(err, "invalid json schema for step \"settings\": invalid character 'i' looking for beginning of value")
 }
 
 func (p *ClientTestSuite) TestLoadInvalidFileExt() {
@@ -282,14 +353,11 @@ func (p *ClientTestSuite) TestLoadInvalidFileExt() {
 		"provider.txt": {
 			Data: []byte(`invalid file.`),
 		},
-		"settings.json": {
-			Data: []byte(`{}`),
-		},
 	}
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.txt", "settings.json")
+	actual, err := p.Target.Load(testFs, "provider.txt")
 
 	// -- Then
 	//
@@ -327,20 +395,17 @@ func (p *ClientTestSuite) TestLoadAll() {
 		{
 			Config:         &providerconfig.ProviderConfig{Title: "factorio"},
 			Filename:       "factorio/provider.yaml",
-			SettingsSchema: &gojsonschema.Schema{},
-			RawSettings:    expectedSettings,
+			SettingsSchema: map[string]*CompiledStep{},
 		},
 		{
 			Config:         &providerconfig.ProviderConfig{Title: "minecraft"},
 			Filename:       "minecraft/provider.yaml",
-			SettingsSchema: &gojsonschema.Schema{},
-			RawSettings:    expectedSettings,
+			SettingsSchema: map[string]*CompiledStep{},
 		},
 		{
 			Config:         &providerconfig.ProviderConfig{Title: "valheim"},
 			Filename:       "valheim/provider.yaml",
-			SettingsSchema: &gojsonschema.Schema{},
-			RawSettings:    expectedSettings,
+			SettingsSchema: map[string]*CompiledStep{},
 		},
 	}
 
@@ -366,13 +431,27 @@ func (p *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderCo
 		opts = v(*opts)
 	}
 
-	if expected.SettingsSchema != nil {
-		p.NotNil(actual.SettingsSchema)
-	} else {
-		p.Nil(actual.SettingsSchema)
+	p.Len(actual.SettingsSchema, len(expected.SettingsSchema))
+
+	for k, v := range expected.SettingsSchema {
+		a, ok := actual.SettingsSchema[k]
+		if !p.True(ok) {
+			continue
+		}
+
+		if v.JSONSchema != nil {
+			p.NotNil(a.JSONSchema)
+		} else {
+			p.Nil(a.JSONSchema)
+		}
+
+		p.Equal(v.RawJSONSchema, a.RawJSONSchema)
+
+		p.Equal(v.Validation, a.Validation)
+
+		p.Empty(cmp.Diff(v.Step, a.Step, protocmp.Transform()))
 	}
 
-	p.Equal(expected.RawSettings, actual.RawSettings)
 	p.Empty(cmp.Diff(expected.Config, actual.Config, protocmp.Transform()))
 	return p.Equal(expected.Filename, actual.Filename)
 }
