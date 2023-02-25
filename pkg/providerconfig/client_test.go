@@ -3,6 +3,7 @@ package providerconfig
 import (
 	"fmt"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hostfactor/api/go/blueprint/steps"
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/stretchr/testify/suite"
 	"github.com/xeipuuv/gojsonschema"
@@ -33,8 +34,9 @@ docs:
 app_settings:
   steps:
     - id: settings
-      json_schema:
-        path: settings.json
+      components:
+        - json_schema:
+            path: settings.json
 volumes:
   - name: derp
     mount:
@@ -88,11 +90,15 @@ volumes:
 				},
 			},
 			AppSettings: &providerconfig.AppSettingsSchema{
-				Steps: []*providerconfig.Step{
+				Steps: []*steps.Step{
 					{
 						Id: "settings",
-						JsonSchema: &providerconfig.JSONSchemaPrompt{
-							Path: "settings.json",
+						Components: []*steps.Component{
+							{
+								JsonSchema: &steps.JSONSchemaComponent{
+									Path: "settings.json",
+								},
+							},
 						},
 					},
 				},
@@ -103,9 +109,13 @@ volumes:
 
 	expected.SettingsSchema = map[string]*CompiledStep{
 		"settings": {
-			JSONSchema:    expectedSettingsSchema,
-			Step:          expected.Config.AppSettings.Steps[0],
-			RawJSONSchema: string(expectedSettings),
+			Step: expected.Config.AppSettings.Steps[0],
+			Components: []*CompiledComponent{
+				{
+					RawJSONSchema: string(expectedSettings),
+					JSONSchema:    expectedSettingsSchema,
+				},
+			},
 		},
 	}
 
@@ -129,35 +139,41 @@ func (p *ClientTestSuite) TestLoadJson() {
 			Data: []byte(`
 {
   "title": "minecraft",
-	"image": "itzg/minecraft-server",
-	"volumes": [
-		{
-			"name": "derp",
-			"mount": {
-				"path": "/path/to/file"
-			},
-			"source": {
-				"file_input": {
-					"accept_props": [".jar"],
-					"help_text": "A *.zip file of your minecraft world data.",
-					"description": "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
-					"destination": {
-						"bucket_folder": "saves"
-					}
-				}
-			}
-		}
-	],
-"app_settings": {
-			"steps": [
-			{
-			"id": "settings",
-			"json_schema": {
-			"path": "settings.json"
-			}
-			}
-			]
-			}
+  "image": "itzg/minecraft-server",
+  "volumes": [
+    {
+      "name": "derp",
+      "mount": {
+        "path": "/path/to/file"
+      },
+      "source": {
+        "file_input": {
+          "accept_props": [
+            ".jar"
+          ],
+          "help_text": "A *.zip file of your minecraft world data.",
+          "description": "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+          "destination": {
+            "bucket_folder": "saves"
+          }
+        }
+      }
+    }
+  ],
+  "app_settings": {
+    "steps": [
+      {
+        "id": "settings",
+        "components": [
+          {
+            "json_schema": {
+              "path": "settings.json"
+            }
+          }
+        ]
+      }
+    ]
+  }
 }
 `),
 		},
@@ -187,11 +203,15 @@ func (p *ClientTestSuite) TestLoadJson() {
 				},
 			},
 			AppSettings: &providerconfig.AppSettingsSchema{
-				Steps: []*providerconfig.Step{
+				Steps: []*steps.Step{
 					{
 						Id: "settings",
-						JsonSchema: &providerconfig.JSONSchemaPrompt{
-							Path: "settings.json",
+						Components: []*steps.Component{
+							{
+								JsonSchema: &steps.JSONSchemaComponent{
+									Path: "settings.json",
+								},
+							},
 						},
 					},
 				},
@@ -202,9 +222,13 @@ func (p *ClientTestSuite) TestLoadJson() {
 
 	expected.SettingsSchema = map[string]*CompiledStep{
 		"settings": {
-			JSONSchema:    expectedSettingsSchema,
-			RawJSONSchema: string(expectedSettings),
-			Step:          expected.Config.AppSettings.Steps[0],
+			Components: []*CompiledComponent{
+				{
+					JSONSchema:    expectedSettingsSchema,
+					RawJSONSchema: string(expectedSettings),
+				},
+			},
+			Step: expected.Config.AppSettings.Steps[0],
 		},
 	}
 
@@ -291,16 +315,20 @@ func (p *ClientTestSuite) TestLoadMissingSettingsJson() {
 	testFs := fstest.MapFS{
 		"provider.json": {
 			Data: []byte(`{
-"app_settings": {
-			"steps": [
-			{
-			"id": "settings",
-			"json_schema": {
-			"path": "settings.json"
-			}
-			}
-			]
-			}
+  "app_settings": {
+    "steps": [
+      {
+        "id": "settings",
+        "components": [
+          {
+            "json_schema": {
+              "path": "settings.json"
+            }
+          }
+        ]
+      }
+    ]
+  }
 			}`),
 		},
 	}
@@ -320,16 +348,24 @@ func (p *ClientTestSuite) TestLoadInvalidSettingsJson() {
 	//
 	testFs := fstest.MapFS{
 		"provider.json": {
-			Data: []byte(`{"app_settings": {
-			"steps": [
+			Data: []byte(`
 			{
-			"id": "settings",
-			"json_schema": {
-			"path": "settings.json"
+  "app_settings": {
+    "steps": [
+      {
+        "id": "settings",
+        "components": [
+          {
+            "json_schema": {
+              "path": "settings.json"
+            }
+          }
+        ]
+      }
+    ]
+  }
 			}
-			}
-			]
-			}}`),
+			`),
 		},
 		"settings.json": {
 			Data: []byte(`invalid file.`),
@@ -439,13 +475,18 @@ func (p *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderCo
 			continue
 		}
 
-		if v.JSONSchema != nil {
-			p.NotNil(a.JSONSchema)
-		} else {
-			p.Nil(a.JSONSchema)
-		}
+		if p.Len(a.Components, len(v.Components)) {
+			for i, expectedComp := range v.Components {
+				actualComp := a.Components[i]
+				if expectedComp.JSONSchema != nil {
+					p.NotNil(actualComp.JSONSchema)
+				} else {
+					p.Nil(actualComp.JSONSchema)
+				}
 
-		p.Equal(v.RawJSONSchema, a.RawJSONSchema)
+				p.Equal(expectedComp.RawJSONSchema, actualComp.RawJSONSchema)
+			}
+		}
 
 		p.Equal(v.Validation, a.Validation)
 

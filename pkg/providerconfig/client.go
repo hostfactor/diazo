@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/hostfactor/api/go/blueprint"
+	"github.com/hostfactor/api/go/blueprint/steps"
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/hostfactor/diazo/pkg/doccache"
 	jsoniter "github.com/json-iterator/go"
@@ -35,10 +36,9 @@ type Validator interface {
 }
 
 type CompiledStep struct {
-	Step          *providerconfig.Step
-	JSONSchema    *gojsonschema.Schema
-	RawJSONSchema string
-	Validation    *CompiledStepValidation
+	Step       *steps.Step
+	Components []*CompiledComponent
+	Validation *CompiledStepValidation
 }
 
 func (c *CompiledStep) Validate(val *blueprint.Value) error {
@@ -47,11 +47,34 @@ func (c *CompiledStep) Validate(val *blueprint.Value) error {
 		return err
 	}
 
-	if val.GetStringValue() != "" {
-		_, err = c.JSONSchema.Validate(gojsonschema.NewStringLoader(val.GetStringValue()))
+	for _, comp := range c.Components {
+		err = comp.Validate(val)
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
+}
+
+type CompiledComponent struct {
+	Component *steps.Component
+
+	JSONSchema    *gojsonschema.Schema
+	RawJSONSchema string
+}
+
+func (c *CompiledComponent) Validate(val *blueprint.Value) error {
+	if val.GetStringValue() == "" {
+		return nil
+	}
+
+	if c.JSONSchema != nil {
+		_, err := c.JSONSchema.Validate(gojsonschema.NewStringLoader(val.GetStringValue()))
+		return err
+	}
+
+	return nil
 }
 
 type CompiledStepValidation struct {
@@ -156,19 +179,27 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 			}
 		}
 
-		if step.GetJsonSchema().GetPath() != "" {
-			rawSettings, err := fs.ReadFile(f, step.GetJsonSchema().GetPath())
-			if err != nil {
-				return nil, fmt.Errorf("failed to load json schema for step \"%s\": %w", step.GetId(), err)
+		for _, comp := range step.GetComponents() {
+			co := &CompiledComponent{
+				Component: comp,
 			}
 
-			loader := gojsonschema.NewBytesLoader(rawSettings)
-			compiled.JSONSchema, err = gojsonschema.NewSchema(loader)
-			if err != nil {
-				return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
+			if comp.GetJsonSchema().GetPath() != "" {
+				rawSettings, err := fs.ReadFile(f, comp.GetJsonSchema().GetPath())
+				if err != nil {
+					return nil, fmt.Errorf("failed to load json schema for step \"%s\": %w", step.GetId(), err)
+				}
+
+				loader := gojsonschema.NewBytesLoader(rawSettings)
+				co.JSONSchema, err = gojsonschema.NewSchema(loader)
+				if err != nil {
+					return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
+				}
+
+				co.RawJSONSchema = string(rawSettings)
 			}
 
-			compiled.RawJSONSchema = string(rawSettings)
+			compiled.Components = append(compiled.Components, co)
 		}
 
 		out.SettingsSchema[step.GetId()] = compiled
