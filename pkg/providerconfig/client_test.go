@@ -112,6 +112,115 @@ volumes:
 			Step: expected.Config.AppSettings.Steps[0],
 			Components: []*CompiledComponent{
 				{
+					Component:     expected.Config.AppSettings.Steps[0].Components[0],
+					RawJSONSchema: string(expectedSettings),
+					JSONSchema:    expectedSettingsSchema,
+				},
+			},
+		},
+	}
+
+	// -- When
+	//
+	actual, err := DefaultClient.Load(testFs, "provider.yaml")
+
+	// -- Then
+	//
+	if p.NoError(err) {
+		p.EqualProviderConfig(expected, actual)
+	}
+}
+
+func (p *ClientTestSuite) TestLoadNoAppSettings() {
+	// -- Given
+	//
+	expectedSettings := []byte(`{}`)
+	testFs := fstest.MapFS{
+		"provider.yaml": {
+			Data: []byte(`
+title: minecraft
+image: itzg/minecraft-server
+docs:
+  entries:
+    - title: Getting started
+      path: ./docs/getting_started.md
+volumes:
+  - name: derp
+    mount:
+      path: /path/to/file
+    source:
+      file_input:
+        accept_props:
+          - .jar
+        help_text: 'A *.zip file of your minecraft world data.'
+        description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
+        destination:
+          bucket_folder: saves
+`),
+		},
+		"settings.json": {
+			Data: expectedSettings,
+		},
+		"docs/getting_started.md": {
+			Data: []byte(`
+# Getting started			
+			`),
+		},
+	}
+
+	expectedSettingsSchema, _ := gojsonschema.NewSchema(gojsonschema.NewBytesLoader(expectedSettings))
+
+	expected := &LoadedProviderConfig{
+		Config: &providerconfig.ProviderConfig{
+			Title: "minecraft",
+			Image: "itzg/minecraft-server",
+			Docs: &providerconfig.Docs{
+				Entries: []*providerconfig.Docs_Entry{
+					{
+						Title: "Getting started",
+						Path:  "./docs/getting_started.md",
+					},
+				},
+			},
+			Volumes: []*providerconfig.Volume{
+				{
+					Name:  "derp",
+					Mount: &providerconfig.VolumeMount{Path: "/path/to/file"},
+					Source: &providerconfig.VolumeSource{
+						FileInput: &providerconfig.FileInputSpec{
+							AcceptProps: []string{".jar"},
+							HelpText:    "A *.zip file of your minecraft world data.",
+							Destination: &providerconfig.FileInputDestination{BucketFolder: "saves"},
+							Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+						},
+					},
+				},
+			},
+			AppSettings: &providerconfig.AppSettingsSchema{
+				Steps: DefaultSteps,
+			},
+		},
+		Filename:       "provider.yaml",
+		SettingsSchema: map[string]*CompiledStep{},
+	}
+
+	expected.SettingsSchema = map[string]*CompiledStep{
+		DefaultSteps[0].Id: {
+			Step: DefaultSteps[0],
+			Components: []*CompiledComponent{
+				{
+					Component: DefaultSteps[0].Components[0],
+				},
+				{
+					Component: DefaultSteps[0].Components[1],
+				},
+			},
+		},
+		DefaultSteps[1].Id: {
+			Step: DefaultSteps[1],
+			Components: []*CompiledComponent{
+				{
+					Component:     DefaultSteps[1].Components[0],
 					RawJSONSchema: string(expectedSettings),
 					JSONSchema:    expectedSettingsSchema,
 				},
@@ -224,6 +333,7 @@ func (p *ClientTestSuite) TestLoadJson() {
 		"settings": {
 			Components: []*CompiledComponent{
 				{
+					Component:     expected.Config.AppSettings.Steps[0].Components[0],
 					JSONSchema:    expectedSettingsSchema,
 					RawJSONSchema: string(expectedSettings),
 				},
@@ -407,19 +517,43 @@ func (p *ClientTestSuite) TestLoadAll() {
 	expectedSettings := []byte(`{}`)
 	testFs := fstest.MapFS{
 		"minecraft/provider.yaml": {
-			Data: []byte(`title: minecraft`),
+			Data: []byte(`
+title: minecraft
+app_settings:
+  steps:
+    - id: settings
+      components:
+        - json_schema:
+            path: settings.json
+      `),
 		},
 		"minecraft/settings.json": {
 			Data: expectedSettings,
 		},
 		"factorio/provider.yaml": {
-			Data: []byte(`title: factorio`),
+			Data: []byte(`
+title: factorio
+app_settings:
+  steps:
+    - id: settings
+      components:
+        - json_schema:
+            path: settings.json
+      `),
 		},
 		"factorio/settings.json": {
 			Data: expectedSettings,
 		},
 		"valheim/provider.yaml": {
-			Data: []byte(`title: valheim`),
+			Data: []byte(`
+title: valheim
+app_settings:
+  steps:
+    - id: settings
+      components:
+        - json_schema:
+            path: settings.json
+      `),
 		},
 		"valheim/settings.json": {
 			Data: expectedSettings,
@@ -427,21 +561,55 @@ func (p *ClientTestSuite) TestLoadAll() {
 		"random_file.txt": {},
 	}
 
+	expectedSettingsSchema := map[string]*CompiledStep{
+		"settings": {
+			Components: []*CompiledComponent{
+				{
+					JSONSchema:    &gojsonschema.Schema{},
+					RawJSONSchema: "{}",
+				},
+			},
+		},
+	}
+
+	expectedComps :=
+		&providerconfig.AppSettingsSchema{
+			Steps: []*steps.Step{
+				{
+					Id: "settings",
+					Components: []*steps.Component{
+						{
+							JsonSchema: &steps.JSONSchemaComponent{Path: "settings.json"},
+						},
+					},
+				},
+			},
+		}
+
 	expected := []*LoadedProviderConfig{
 		{
-			Config:         &providerconfig.ProviderConfig{Title: "factorio"},
+			Config: &providerconfig.ProviderConfig{
+				Title:       "factorio",
+				AppSettings: expectedComps,
+			},
 			Filename:       "factorio/provider.yaml",
-			SettingsSchema: map[string]*CompiledStep{},
+			SettingsSchema: expectedSettingsSchema,
 		},
 		{
-			Config:         &providerconfig.ProviderConfig{Title: "minecraft"},
+			Config: &providerconfig.ProviderConfig{
+				Title:       "minecraft",
+				AppSettings: expectedComps,
+			},
 			Filename:       "minecraft/provider.yaml",
-			SettingsSchema: map[string]*CompiledStep{},
+			SettingsSchema: expectedSettingsSchema,
 		},
 		{
-			Config:         &providerconfig.ProviderConfig{Title: "valheim"},
+			Config: &providerconfig.ProviderConfig{
+				Title:       "valheim",
+				AppSettings: expectedComps,
+			},
 			Filename:       "valheim/provider.yaml",
-			SettingsSchema: map[string]*CompiledStep{},
+			SettingsSchema: expectedSettingsSchema,
 		},
 	}
 
@@ -478,6 +646,11 @@ func (p *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderCo
 		if p.Len(a.Components, len(v.Components)) {
 			for i, expectedComp := range v.Components {
 				actualComp := a.Components[i]
+
+				if expectedComp.Component != nil {
+					p.Empty(cmp.Diff(expectedComp.Component, actualComp.Component, protocmp.Transform()))
+				}
+
 				if expectedComp.JSONSchema != nil {
 					p.NotNil(actualComp.JSONSchema)
 				} else {
@@ -490,7 +663,9 @@ func (p *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderCo
 
 		p.Equal(v.Validation, a.Validation)
 
-		p.Empty(cmp.Diff(v.Step, a.Step, protocmp.Transform()))
+		if v.Step != nil {
+			p.Empty(cmp.Diff(v.Step, a.Step, protocmp.Transform()))
+		}
 	}
 
 	p.Empty(cmp.Diff(expected.Config, actual.Config, protocmp.Transform()))

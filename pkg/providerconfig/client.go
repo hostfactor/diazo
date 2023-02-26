@@ -21,6 +21,32 @@ var DefaultClient = NewClient()
 
 var (
 	DefaultProviderFilename = "provider.yaml"
+	DefaultSettingsFilename = "settings.json"
+	DefaultSteps            = []*steps.Step{
+		{
+			Id:    "version_disk",
+			Title: "Version and disk",
+			Components: []*steps.Component{
+				{
+					Version: &steps.VersionComponent{},
+				},
+				{
+					Disk: &steps.DiskComponent{},
+				},
+			},
+		},
+		{
+			Id:    "settings",
+			Title: "Settings",
+			Components: []*steps.Component{
+				{
+					JsonSchema: &steps.JSONSchemaComponent{
+						Path: DefaultSettingsFilename,
+					},
+				},
+			},
+		},
+	}
 )
 
 type LoadedProviderConfig struct {
@@ -62,6 +88,8 @@ type CompiledComponent struct {
 
 	JSONSchema    *gojsonschema.Schema
 	RawJSONSchema string
+
+	VersionRegex *regexp.Regexp
 }
 
 func (c *CompiledComponent) Validate(val *blueprint.Value) error {
@@ -156,13 +184,20 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 		return nil, err
 	}
 
+	// TODO: remove block when fully deprecated default settings.json
+	if len(out.Config.GetAppSettings().GetSteps()) == 0 {
+		out.Config.AppSettings = &providerconfig.AppSettingsSchema{
+			Steps: DefaultSteps,
+		}
+	}
+
 	out.DocCache, err = doccache.New(f, out.Config)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range out.Config.GetAppSettings().GetSteps() {
-		step := out.Config.GetAppSettings().GetSteps()[i]
+		step := out.Config.AppSettings.Steps[i]
 		compiled := &CompiledStep{
 			Step: step,
 		}
