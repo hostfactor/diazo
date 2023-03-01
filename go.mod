@@ -10,7 +10,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
-	github.com/hostfactor/api/go v0.0.0-20230226225530-3bfdd8f64fd4
+	github.com/hostfactor/api/go v0.0.0-20230301033149-599088ae79cd
 	github.com/json-iterator/go v1.1.12
 	github.com/mattn/go-zglob v0.0.3
 	github.com/mholt/archiver/v3 v3.5.1

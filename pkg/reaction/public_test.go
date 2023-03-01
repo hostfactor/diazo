@@ -6,10 +6,10 @@ import (
 	"github.com/bxcodec/faker/v3"
 	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/app"
-	appmocks "github.com/hostfactor/api/go/app/mocks"
 	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/api/go/blueprint/reaction"
+	"github.com/hostfactor/api/go/mocks"
 	"github.com/hostfactor/diazo/pkg/actions/fileactions"
 	fileactionsmocks "github.com/hostfactor/diazo/pkg/actions/fileactions/mocks"
 	"github.com/hostfactor/diazo/pkg/variable"
@@ -128,7 +128,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 func (p *PublicTestSuite) TestExecuteLog() {
 	// -- Given
 	//
-	appService := new(appmocks.AppServiceClient)
+	appService := new(mocks.AppServiceClient)
 	type test struct {
 		ExpectedErr error
 		Store       func() variable.Store
@@ -228,7 +228,7 @@ func (p *PublicTestSuite) TestExecuteLog() {
 		appService.AssertExpectations(p.T())
 		_ = f.Close()
 		f, _ = os.Create(log)
-		appService = new(appmocks.AppServiceClient)
+		appService = new(mocks.AppServiceClient)
 	}
 }
 
