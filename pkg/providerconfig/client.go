@@ -22,31 +22,6 @@ var DefaultClient = NewClient()
 var (
 	DefaultProviderFilename = "provider.yaml"
 	DefaultSettingsFilename = "settings.json"
-	DefaultSteps            = []*steps.Step{
-		{
-			Id:    "version_disk",
-			Title: "Version and disk",
-			Components: []*steps.Component{
-				{
-					Version: &steps.VersionComponent{},
-				},
-				{
-					Disk: &steps.DiskComponent{},
-				},
-			},
-		},
-		{
-			Id:    "settings",
-			Title: "Settings",
-			Components: []*steps.Component{
-				{
-					JsonSchema: &steps.JSONSchemaComponent{
-						Path: DefaultSettingsFilename,
-					},
-				},
-			},
-		},
-	}
 )
 
 type LoadedProviderConfig struct {
@@ -55,6 +30,8 @@ type LoadedProviderConfig struct {
 	SettingsSchema map[string]*CompiledStep
 	DocCache       doccache.DocCache
 	Filename       string
+	Settings       *gojsonschema.Schema
+	RawSettings    string
 }
 
 type Validator interface {
@@ -186,58 +163,67 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 
 	// TODO: remove block when fully deprecated default settings.json
 	if len(out.Config.GetAppSettings().GetSteps()) == 0 {
-		out.Config.AppSettings = &providerconfig.AppSettingsSchema{
-			Steps: DefaultSteps,
+		rawSettings, err := fs.ReadFile(f, DefaultSettingsFilename)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load json schema at %s: %w", DefaultSettingsFilename, err)
+		}
+
+		out.RawSettings = string(rawSettings)
+
+		loader := gojsonschema.NewBytesLoader(rawSettings)
+		out.Settings, err = gojsonschema.NewSchema(loader)
+		if err != nil {
+			return nil, fmt.Errorf("invalid json schema %s: %w", DefaultSettingsFilename, err)
+		}
+	} else {
+		for i := range out.Config.GetAppSettings().GetSteps() {
+			step := out.Config.AppSettings.Steps[i]
+			compiled := &CompiledStep{
+				Step: step,
+			}
+
+			if step.GetValidation().GetRegex() != "" {
+				reg, err := regexp.Compile(step.GetValidation().GetRegex())
+				if err != nil {
+					return nil, fmt.Errorf("invalid regex validation for step \"%s\": %w", step.GetId(), err)
+				}
+
+				compiled.Validation = &CompiledStepValidation{
+					Regex:   reg,
+					Message: step.GetValidation().GetMessage(),
+				}
+			}
+
+			for _, comp := range step.GetComponents() {
+				co := &CompiledComponent{
+					Component: comp,
+				}
+
+				if comp.GetJsonSchema().GetPath() != "" {
+					rawSettings, err := fs.ReadFile(f, comp.GetJsonSchema().GetPath())
+					if err != nil {
+						return nil, fmt.Errorf("failed to load json schema for step \"%s\": %w", step.GetId(), err)
+					}
+
+					loader := gojsonschema.NewBytesLoader(rawSettings)
+					co.JSONSchema, err = gojsonschema.NewSchema(loader)
+					if err != nil {
+						return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
+					}
+
+					co.RawJSONSchema = string(rawSettings)
+				}
+
+				compiled.Components = append(compiled.Components, co)
+			}
+
+			out.SettingsSchema[step.GetId()] = compiled
 		}
 	}
 
 	out.DocCache, err = doccache.New(f, out.Config)
 	if err != nil {
 		return nil, err
-	}
-
-	for i := range out.Config.GetAppSettings().GetSteps() {
-		step := out.Config.AppSettings.Steps[i]
-		compiled := &CompiledStep{
-			Step: step,
-		}
-
-		if step.GetValidation().GetRegex() != "" {
-			reg, err := regexp.Compile(step.GetValidation().GetRegex())
-			if err != nil {
-				return nil, fmt.Errorf("invalid regex validation for step \"%s\": %w", step.GetId(), err)
-			}
-
-			compiled.Validation = &CompiledStepValidation{
-				Regex:   reg,
-				Message: step.GetValidation().GetMessage(),
-			}
-		}
-
-		for _, comp := range step.GetComponents() {
-			co := &CompiledComponent{
-				Component: comp,
-			}
-
-			if comp.GetJsonSchema().GetPath() != "" {
-				rawSettings, err := fs.ReadFile(f, comp.GetJsonSchema().GetPath())
-				if err != nil {
-					return nil, fmt.Errorf("failed to load json schema for step \"%s\": %w", step.GetId(), err)
-				}
-
-				loader := gojsonschema.NewBytesLoader(rawSettings)
-				co.JSONSchema, err = gojsonschema.NewSchema(loader)
-				if err != nil {
-					return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
-				}
-
-				co.RawJSONSchema = string(rawSettings)
-			}
-
-			compiled.Components = append(compiled.Components, co)
-		}
-
-		out.SettingsSchema[step.GetId()] = compiled
 	}
 
 	return out, nil

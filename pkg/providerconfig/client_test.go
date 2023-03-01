@@ -196,37 +196,13 @@ volumes:
 					},
 				},
 			},
-			AppSettings: &providerconfig.AppSettingsSchema{
-				Steps: DefaultSteps,
-			},
 		},
 		Filename:       "provider.yaml",
 		SettingsSchema: map[string]*CompiledStep{},
 	}
 
-	expected.SettingsSchema = map[string]*CompiledStep{
-		DefaultSteps[0].Id: {
-			Step: DefaultSteps[0],
-			Components: []*CompiledComponent{
-				{
-					Component: DefaultSteps[0].Components[0],
-				},
-				{
-					Component: DefaultSteps[0].Components[1],
-				},
-			},
-		},
-		DefaultSteps[1].Id: {
-			Step: DefaultSteps[1],
-			Components: []*CompiledComponent{
-				{
-					Component:     DefaultSteps[1].Components[0],
-					RawJSONSchema: string(expectedSettings),
-					JSONSchema:    expectedSettingsSchema,
-				},
-			},
-		},
-	}
+	expected.Settings = expectedSettingsSchema
+	expected.RawSettings = string(expectedSettings)
 
 	// -- When
 	//
