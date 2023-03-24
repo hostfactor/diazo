@@ -1,6 +1,7 @@
 package except
 
 import (
+	"errors"
 	"fmt"
 	"github.com/hostfactor/api/go/exception"
 	"google.golang.org/grpc/codes"
@@ -62,7 +63,7 @@ func NewFromGRPCStatus(s *status.Status) error {
 }
 
 func ToGRPC(err error) error {
-	v, ok := err.(*Error)
+	v, ok := Unwrap(err).(*Error)
 	if v == nil {
 		return nil
 	}
@@ -254,4 +255,13 @@ func (r Reason) String() string {
 		return "internal"
 	}
 	return "internal"
+}
+
+// Unwrap same as errors.Unwrap but returns the original error if the error is not wrapping anything.
+func Unwrap(err error) error {
+	unwrapped := errors.Unwrap(err)
+	if unwrapped != nil {
+		return unwrapped
+	}
+	return err
 }
