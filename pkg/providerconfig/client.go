@@ -9,6 +9,7 @@ import (
 	"github.com/hostfactor/api/go/blueprint/steps"
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/hostfactor/diazo/pkg/doccache"
+	"github.com/hostfactor/diazo/pkg/ptr"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
@@ -25,17 +26,59 @@ var (
 )
 
 type LoadedProviderConfig struct {
-	Config *providerconfig.ProviderConfig
+	Config      *providerconfig.ProviderConfig
+	DocCache    doccache.DocCache
+	Filename    string
+	Settings    *gojsonschema.Schema
+	RawSettings string
+
 	// schemas by step IDs
-	SettingsSchema map[string]*CompiledStep
-	DocCache       doccache.DocCache
-	Filename       string
-	Settings       *gojsonschema.Schema
-	RawSettings    string
+	settingsSchema map[string]*CompiledStep
 }
 
-type Validator interface {
-	Validate(val *blueprint.Value) error
+func (l *LoadedProviderConfig) Validate(val *blueprint.AppSettings) *blueprint.Validation {
+	compVals := val.GetComponentValues()
+	if compVals == nil {
+		compVals = map[string]*blueprint.ValueSet{}
+	}
+
+	for k, v := range l.settingsSchema {
+		valSet, ok := compVals[k]
+		if !ok {
+			valid := &blueprint.Validation{
+				Problems: []*blueprint.ValidationProblem{
+					{
+						What:  fmt.Sprintf("Setting %s required.", k),
+						Where: k,
+					},
+				},
+			}
+
+			return valid
+		}
+
+		for _, val := range valSet.GetValues() {
+			err := v.Validate(val)
+			if err != nil {
+				valid := &blueprint.Validation{
+					Problems: []*blueprint.ValidationProblem{
+						{
+							What:  err.Error(),
+							Where: k,
+						},
+					},
+				}
+
+				return valid
+			}
+		}
+	}
+
+	return nil
+}
+
+type Validator[T any] interface {
+	Validate(val T) error
 }
 
 type CompiledStep struct {
@@ -61,11 +104,8 @@ func (c *CompiledStep) Validate(val *blueprint.Value) error {
 }
 
 type CompiledComponent struct {
-	Component *steps.Component
-
-	JSONSchema    *gojsonschema.Schema
-	RawJSONSchema string
-
+	Component    *steps.Component
+	JSONSchema   *gojsonschema.Schema
 	VersionRegex *regexp.Regexp
 }
 
@@ -153,7 +193,7 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 	var err error
 	out := &LoadedProviderConfig{
 		Filename:       providerFilename,
-		SettingsSchema: map[string]*CompiledStep{},
+		settingsSchema: map[string]*CompiledStep{},
 	}
 
 	out.Config, err = c.LoadProviderFile(f, providerFilename)
@@ -211,13 +251,13 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 						return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
 					}
 
-					co.RawJSONSchema = string(rawSettings)
+					co.Component.JsonSchema.Schema = ptr.String(string(rawSettings))
 				}
 
 				compiled.Components = append(compiled.Components, co)
 			}
 
-			out.SettingsSchema[step.GetId()] = compiled
+			out.settingsSchema[step.GetId()] = compiled
 		}
 	}
 

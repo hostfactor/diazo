@@ -5,6 +5,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hostfactor/api/go/blueprint/steps"
 	"github.com/hostfactor/api/go/providerconfig"
+	"github.com/hostfactor/diazo/pkg/ptr"
 	"github.com/stretchr/testify/suite"
 	"github.com/xeipuuv/gojsonschema"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -96,7 +97,8 @@ volumes:
 						Components: []*steps.Component{
 							{
 								JsonSchema: &steps.JSONSchemaComponent{
-									Path: "settings.json",
+									Path:   ptr.String("settings.json"),
+									Schema: ptr.String(string(expectedSettings)),
 								},
 							},
 						},
@@ -107,14 +109,13 @@ volumes:
 		Filename: "provider.yaml",
 	}
 
-	expected.SettingsSchema = map[string]*CompiledStep{
+	expected.settingsSchema = map[string]*CompiledStep{
 		"settings": {
 			Step: expected.Config.AppSettings.Steps[0],
 			Components: []*CompiledComponent{
 				{
-					Component:     expected.Config.AppSettings.Steps[0].Components[0],
-					RawJSONSchema: string(expectedSettings),
-					JSONSchema:    expectedSettingsSchema,
+					Component:  expected.Config.AppSettings.Steps[0].Components[0],
+					JSONSchema: expectedSettingsSchema,
 				},
 			},
 		},
@@ -198,7 +199,7 @@ volumes:
 			},
 		},
 		Filename:       "provider.yaml",
-		SettingsSchema: map[string]*CompiledStep{},
+		settingsSchema: map[string]*CompiledStep{},
 	}
 
 	expected.Settings = expectedSettingsSchema
@@ -294,7 +295,8 @@ func (p *ClientTestSuite) TestLoadJson() {
 						Components: []*steps.Component{
 							{
 								JsonSchema: &steps.JSONSchemaComponent{
-									Path: "settings.json",
+									Path:   ptr.String("settings.json"),
+									Schema: ptr.String(string(expectedSettings)),
 								},
 							},
 						},
@@ -305,13 +307,12 @@ func (p *ClientTestSuite) TestLoadJson() {
 		Filename: "provider.json",
 	}
 
-	expected.SettingsSchema = map[string]*CompiledStep{
+	expected.settingsSchema = map[string]*CompiledStep{
 		"settings": {
 			Components: []*CompiledComponent{
 				{
-					Component:     expected.Config.AppSettings.Steps[0].Components[0],
-					JSONSchema:    expectedSettingsSchema,
-					RawJSONSchema: string(expectedSettings),
+					Component:  expected.Config.AppSettings.Steps[0].Components[0],
+					JSONSchema: expectedSettingsSchema,
 				},
 			},
 			Step: expected.Config.AppSettings.Steps[0],
@@ -541,8 +542,10 @@ app_settings:
 		"settings": {
 			Components: []*CompiledComponent{
 				{
-					JSONSchema:    &gojsonschema.Schema{},
-					RawJSONSchema: "{}",
+					JSONSchema: &gojsonschema.Schema{},
+					Component: &steps.Component{
+						JsonSchema: &steps.JSONSchemaComponent{Schema: ptr.String(string(expectedSettings)), Path: ptr.String("settings.json")},
+					},
 				},
 			},
 		},
@@ -555,7 +558,7 @@ app_settings:
 					Id: "settings",
 					Components: []*steps.Component{
 						{
-							JsonSchema: &steps.JSONSchemaComponent{Path: "settings.json"},
+							JsonSchema: &steps.JSONSchemaComponent{Path: ptr.String("settings.json"), Schema: ptr.String(string(expectedSettings))},
 						},
 					},
 				},
@@ -569,7 +572,7 @@ app_settings:
 				AppSettings: expectedComps,
 			},
 			Filename:       "factorio/provider.yaml",
-			SettingsSchema: expectedSettingsSchema,
+			settingsSchema: expectedSettingsSchema,
 		},
 		{
 			Config: &providerconfig.ProviderConfig{
@@ -577,7 +580,7 @@ app_settings:
 				AppSettings: expectedComps,
 			},
 			Filename:       "minecraft/provider.yaml",
-			SettingsSchema: expectedSettingsSchema,
+			settingsSchema: expectedSettingsSchema,
 		},
 		{
 			Config: &providerconfig.ProviderConfig{
@@ -585,7 +588,7 @@ app_settings:
 				AppSettings: expectedComps,
 			},
 			Filename:       "valheim/provider.yaml",
-			SettingsSchema: expectedSettingsSchema,
+			settingsSchema: expectedSettingsSchema,
 		},
 	}
 
@@ -611,10 +614,10 @@ func (p *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderCo
 		opts = v(*opts)
 	}
 
-	p.Len(actual.SettingsSchema, len(expected.SettingsSchema))
+	p.Len(actual.settingsSchema, len(expected.settingsSchema))
 
-	for k, v := range expected.SettingsSchema {
-		a, ok := actual.SettingsSchema[k]
+	for k, v := range expected.settingsSchema {
+		a, ok := actual.settingsSchema[k]
 		if !p.True(ok) {
 			continue
 		}
@@ -633,7 +636,7 @@ func (p *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderCo
 					p.Nil(actualComp.JSONSchema)
 				}
 
-				p.Equal(expectedComp.RawJSONSchema, actualComp.RawJSONSchema)
+				p.Equal(expectedComp.Component.GetJsonSchema().GetSchema(), actualComp.Component.GetJsonSchema().GetSchema())
 			}
 		}
 
