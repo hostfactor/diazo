@@ -58,3 +58,20 @@ func Index[K comparable, V any](sl []V, f IndexFunc[K, V]) map[K]V {
 
 	return m
 }
+
+func Any[T any](sl []T, f FinderFunc[T]) bool {
+	for _, v := range sl {
+		if f(v) {
+			return true
+		}
+	}
+	return false
+}
+
+func All[T any](sl []T, f FinderFunc[T]) bool {
+	out := true
+	for _, v := range sl {
+		out = out && f(v)
+	}
+	return out
+}
