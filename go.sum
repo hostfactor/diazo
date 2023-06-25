@@ -607,6 +607,12 @@ github.com/hostfactor/api/go v0.0.0-20230324230259-523864b25d37 h1:+1fj3ENa30RSy
 github.com/hostfactor/api/go v0.0.0-20230324230259-523864b25d37/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
 github.com/hostfactor/api/go v0.0.0-20230331212036-73af17b4daa0 h1:yoOY4TMeQCF6WARzSiVYWKnf4IFMuGeyhl93aspOKeY=
 github.com/hostfactor/api/go v0.0.0-20230331212036-73af17b4daa0/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
+github.com/hostfactor/api/go v0.0.0-20230622033524-a62572a9c88b h1:CDsOcnRExvCZ8icKxEx7Wm6Rv2T99/FvmPKz9DuYe/Q=
+github.com/hostfactor/api/go v0.0.0-20230622033524-a62572a9c88b/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
+github.com/hostfactor/api/go v0.0.0-20230623192819-0ee111ffb464 h1:W9Ojf6PbYBRNIcCRzBuYbP4+1KAiWioxJmLD3bxl0XY=
+github.com/hostfactor/api/go v0.0.0-20230623192819-0ee111ffb464/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
+github.com/hostfactor/api/go v0.0.0-20230623193212-a89157bb35f7 h1:R7opg3Ob0n8n6LIiAsBPxyahK77oBefxOzj+mvhdctA=
+github.com/hostfactor/api/go v0.0.0-20230623193212-a89157bb35f7/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/iancoleman/strcase v0.2.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=

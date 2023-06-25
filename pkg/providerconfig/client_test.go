@@ -5,6 +5,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hostfactor/api/go/blueprint/steps"
 	"github.com/hostfactor/api/go/providerconfig"
+	"github.com/hostfactor/diazo/pkg/collection"
 	"github.com/hostfactor/diazo/pkg/ptr"
 	"github.com/stretchr/testify/suite"
 	"github.com/xeipuuv/gojsonschema"
@@ -19,7 +20,7 @@ type ClientTestSuite struct {
 	Target *client
 }
 
-func (p *ClientTestSuite) TestLoad() {
+func (c *ClientTestSuite) TestLoad() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -32,24 +33,30 @@ docs:
   entries:
     - title: Getting started
       path: ./docs/getting_started.md
-app_settings:
-  steps:
+forms:
+  - steps:
     - id: settings
       components:
         - json_schema:
             path: settings.json
+    screens:
+      - start
+  - steps:
+    - id: select
+      components:
+        - file_select:
+            accept_props:
+              - .jar
+            help_text: 'A *.zip file of your minecraft world data.'
+            description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
+            destination:
+              bucket_folder: saves
+    screens:
+      - start
 volumes:
   - name: derp
     mount:
       path: /path/to/file
-    source:
-      file_input:
-        accept_props:
-          - .jar
-        help_text: 'A *.zip file of your minecraft world data.'
-        description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
-        destination:
-          bucket_folder: saves
 `),
 		},
 		"settings.json": {
@@ -80,25 +87,41 @@ volumes:
 				{
 					Name:  "derp",
 					Mount: &providerconfig.VolumeMount{Path: "/path/to/file"},
-					Source: &providerconfig.VolumeSource{
-						FileInput: &providerconfig.FileInputSpec{
-							AcceptProps: []string{".jar"},
-							HelpText:    "A *.zip file of your minecraft world data.",
-							Destination: &providerconfig.FileInputDestination{BucketFolder: "saves"},
-							Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
+				},
+			},
+			Forms: []*providerconfig.SettingsForm{
+				{
+					Screens: []providerconfig.Screen_Enum{
+						providerconfig.Screen_start,
+					},
+					Steps: []*steps.Step{
+						{
+							Id: "settings",
+							Components: []*steps.Component{
+								{
+									JsonSchema: &steps.JSONSchemaComponent{
+										Path:   ptr.String("settings.json"),
+										Schema: ptr.String(string(expectedSettings)),
+									},
+								},
+							},
 						},
 					},
 				},
-			},
-			AppSettings: &providerconfig.AppSettingsSchema{
-				Steps: []*steps.Step{
-					{
-						Id: "settings",
-						Components: []*steps.Component{
-							{
-								JsonSchema: &steps.JSONSchemaComponent{
-									Path:   ptr.String("settings.json"),
-									Schema: ptr.String(string(expectedSettings)),
+				{
+					Screens: []providerconfig.Screen_Enum{
+						providerconfig.Screen_start,
+					},
+					Steps: []*steps.Step{
+						{
+							Id: "select",
+							Components: []*steps.Component{
+								{
+									FileSelect: &steps.FileSelectComponent{
+										AcceptProps: []string{".jar"},
+										HelpText:    ptr.Ptr("A *.zip file of your minecraft world data."),
+										Description: ptr.Ptr("The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave."),
+									},
 								},
 							},
 						},
@@ -109,13 +132,31 @@ volumes:
 		Filename: "provider.yaml",
 	}
 
-	expected.settingsSchema = map[string]*CompiledStep{
-		"settings": {
-			Step: expected.Config.AppSettings.Steps[0],
-			Components: []*CompiledComponent{
-				{
-					Component:  expected.Config.AppSettings.Steps[0].Components[0],
-					JSONSchema: expectedSettingsSchema,
+	expected.Forms = []Form{
+		{
+			raw: expected.Config.Forms[0],
+			Steps: map[string]*CompiledStep{
+				"settings": {
+					Step: expected.Config.Forms[0].Steps[0],
+					Components: []*CompiledComponent{
+						{
+							Component:  expected.Config.Forms[0].Steps[0].Components[0],
+							JSONSchema: expectedSettingsSchema,
+						},
+					},
+				},
+			},
+		},
+		{
+			raw: expected.Config.Forms[1],
+			Steps: map[string]*CompiledStep{
+				"select": {
+					Step: expected.Config.Forms[1].Steps[0],
+					Components: []*CompiledComponent{
+						{
+							Component: expected.Config.Forms[1].Steps[0].Components[0],
+						},
+					},
 				},
 			},
 		},
@@ -127,12 +168,12 @@ volumes:
 
 	// -- Then
 	//
-	if p.NoError(err) {
-		p.EqualProviderConfig(expected, actual)
+	if c.NoError(err) {
+		c.EqualProviderConfig(expected, actual)
 	}
 }
 
-func (p *ClientTestSuite) TestLoadNoAppSettings() {
+func (c *ClientTestSuite) TestLoadNoAppSettings() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -198,8 +239,8 @@ volumes:
 				},
 			},
 		},
-		Filename:       "provider.yaml",
-		settingsSchema: map[string]*CompiledStep{},
+		Filename: "provider.yaml",
+		Forms:    []Form{},
 	}
 
 	expected.Settings = expectedSettingsSchema
@@ -211,12 +252,12 @@ volumes:
 
 	// -- Then
 	//
-	if p.NoError(err) {
-		p.EqualProviderConfig(expected, actual)
+	if c.NoError(err) {
+		c.EqualProviderConfig(expected, actual)
 	}
 }
 
-func (p *ClientTestSuite) TestLoadJson() {
+func (c *ClientTestSuite) TestLoadJson() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -246,7 +287,8 @@ func (p *ClientTestSuite) TestLoadJson() {
       }
     }
   ],
-  "app_settings": {
+  "forms": [
+			{
     "steps": [
       {
         "id": "settings",
@@ -259,7 +301,8 @@ func (p *ClientTestSuite) TestLoadJson() {
         ]
       }
     ]
-  }
+			}
+  ]
 }
 `),
 		},
@@ -288,15 +331,17 @@ func (p *ClientTestSuite) TestLoadJson() {
 					},
 				},
 			},
-			AppSettings: &providerconfig.AppSettingsSchema{
-				Steps: []*steps.Step{
-					{
-						Id: "settings",
-						Components: []*steps.Component{
-							{
-								JsonSchema: &steps.JSONSchemaComponent{
-									Path:   ptr.String("settings.json"),
-									Schema: ptr.String(string(expectedSettings)),
+			Forms: []*providerconfig.SettingsForm{
+				{
+					Steps: []*steps.Step{
+						{
+							Id: "settings",
+							Components: []*steps.Component{
+								{
+									JsonSchema: &steps.JSONSchemaComponent{
+										Path:   ptr.String("settings.json"),
+										Schema: ptr.String(string(expectedSettings)),
+									},
 								},
 							},
 						},
@@ -307,15 +352,20 @@ func (p *ClientTestSuite) TestLoadJson() {
 		Filename: "provider.json",
 	}
 
-	expected.settingsSchema = map[string]*CompiledStep{
-		"settings": {
-			Components: []*CompiledComponent{
-				{
-					Component:  expected.Config.AppSettings.Steps[0].Components[0],
-					JSONSchema: expectedSettingsSchema,
+	expected.Forms = []Form{
+		{
+			raw: expected.Config.Forms[0],
+			Steps: map[string]*CompiledStep{
+				"settings": {
+					Components: []*CompiledComponent{
+						{
+							Component:  expected.Config.Forms[0].Steps[0].Components[0],
+							JSONSchema: expectedSettingsSchema,
+						},
+					},
+					Step: expected.Config.Forms[0].Steps[0],
 				},
 			},
-			Step: expected.Config.AppSettings.Steps[0],
 		},
 	}
 
@@ -325,12 +375,12 @@ func (p *ClientTestSuite) TestLoadJson() {
 
 	// -- Then
 	//
-	if p.NoError(err) {
-		p.EqualProviderConfig(expected, actual)
+	if c.NoError(err) {
+		c.EqualProviderConfig(expected, actual)
 	}
 }
 
-func (p *ClientTestSuite) TestLoadMissingFile() {
+func (c *ClientTestSuite) TestLoadMissingFile() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -343,15 +393,15 @@ func (p *ClientTestSuite) TestLoadMissingFile() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.yml")
+	actual, err := c.Target.Load(testFs, "provider.yml")
 
 	// -- Then
 	//
-	p.Nil(actual)
-	p.EqualError(err, "open provider.yml: file does not exist")
+	c.Nil(actual)
+	c.EqualError(err, "open provider.yml: file does not exist")
 }
 
-func (p *ClientTestSuite) TestLoadInvalidYaml() {
+func (c *ClientTestSuite) TestLoadInvalidYaml() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -366,15 +416,15 @@ func (p *ClientTestSuite) TestLoadInvalidYaml() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.yaml")
+	actual, err := c.Target.Load(testFs, "provider.yaml")
 
 	// -- Then
 	//
-	p.Nil(actual)
-	p.EqualError(err, "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `invalid...` into map[string]interface {}")
+	c.Nil(actual)
+	c.EqualError(err, "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `invalid...` into map[string]interface {}")
 }
 
-func (p *ClientTestSuite) TestLoadInvalidJson() {
+func (c *ClientTestSuite) TestLoadInvalidJson() {
 	// -- Given
 	//
 	testFs := fstest.MapFS{
@@ -388,21 +438,22 @@ func (p *ClientTestSuite) TestLoadInvalidJson() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.json")
+	actual, err := c.Target.Load(testFs, "provider.json")
 
 	// -- Then
 	//
-	p.Nil(actual)
-	p.EqualError(err, "invalid character 'i' looking for beginning of value")
+	c.Nil(actual)
+	c.EqualError(err, "invalid character 'i' looking for beginning of value")
 }
 
-func (p *ClientTestSuite) TestLoadMissingSettingsJson() {
+func (c *ClientTestSuite) TestLoadMissingSettingsJson() {
 	// -- Given
 	//
 	testFs := fstest.MapFS{
 		"provider.json": {
 			Data: []byte(`{
-  "app_settings": {
+  "forms": [
+			{
     "steps": [
       {
         "id": "settings",
@@ -415,6 +466,8 @@ func (p *ClientTestSuite) TestLoadMissingSettingsJson() {
         ]
       }
     ]
+			}
+			]
   }
 			}`),
 		},
@@ -422,22 +475,23 @@ func (p *ClientTestSuite) TestLoadMissingSettingsJson() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.json")
+	actual, err := c.Target.Load(testFs, "provider.json")
 
 	// -- Then
 	//
-	p.Nil(actual)
-	p.EqualError(err, "failed to load json schema for step \"settings\": open settings.json: file does not exist")
+	c.Nil(actual)
+	c.EqualError(err, "failed to load json schema for step \"settings\": open settings.json: file does not exist")
 }
 
-func (p *ClientTestSuite) TestLoadInvalidSettingsJson() {
+func (c *ClientTestSuite) TestLoadInvalidSettingsJson() {
 	// -- Given
 	//
 	testFs := fstest.MapFS{
 		"provider.json": {
 			Data: []byte(`
 			{
-  "app_settings": {
+  "forms": [
+			{
     "steps": [
       {
         "id": "settings",
@@ -450,7 +504,8 @@ func (p *ClientTestSuite) TestLoadInvalidSettingsJson() {
         ]
       }
     ]
-  }
+			}
+  ]
 			}
 			`),
 		},
@@ -461,15 +516,15 @@ func (p *ClientTestSuite) TestLoadInvalidSettingsJson() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.json")
+	actual, err := c.Target.Load(testFs, "provider.json")
 
 	// -- Then
 	//
-	p.Nil(actual)
-	p.EqualError(err, "invalid json schema for step \"settings\": invalid character 'i' looking for beginning of value")
+	c.Nil(actual)
+	c.EqualError(err, "invalid json schema for step \"settings\": invalid character 'i' looking for beginning of value")
 }
 
-func (p *ClientTestSuite) TestLoadInvalidFileExt() {
+func (c *ClientTestSuite) TestLoadInvalidFileExt() {
 	// -- Given
 	//
 	testFs := fstest.MapFS{
@@ -480,15 +535,15 @@ func (p *ClientTestSuite) TestLoadInvalidFileExt() {
 
 	// -- When
 	//
-	actual, err := p.Target.Load(testFs, "provider.txt")
+	actual, err := c.Target.Load(testFs, "provider.txt")
 
 	// -- Then
 	//
-	p.Nil(actual)
-	p.EqualError(err, ".txt is not a supported extension for provider configs")
+	c.Nil(actual)
+	c.EqualError(err, ".txt is not a supported extension for provider configs")
 }
 
-func (p *ClientTestSuite) TestLoadAll() {
+func (c *ClientTestSuite) TestLoadAll() {
 	// -- Given
 	//
 	expectedSettings := []byte(`{}`)
@@ -496,12 +551,12 @@ func (p *ClientTestSuite) TestLoadAll() {
 		"minecraft/provider.yaml": {
 			Data: []byte(`
 title: minecraft
-app_settings:
-  steps:
-    - id: settings
-      components:
-        - json_schema:
-            path: settings.json
+forms:
+  - steps:
+      - id: settings
+        components:
+          - json_schema:
+              path: settings.json
       `),
 		},
 		"minecraft/settings.json": {
@@ -510,8 +565,8 @@ app_settings:
 		"factorio/provider.yaml": {
 			Data: []byte(`
 title: factorio
-app_settings:
-  steps:
+forms:
+  - steps:
     - id: settings
       components:
         - json_schema:
@@ -524,8 +579,8 @@ app_settings:
 		"valheim/provider.yaml": {
 			Data: []byte(`
 title: valheim
-app_settings:
-  steps:
+forms:
+  - steps:
     - id: settings
       components:
         - json_schema:
@@ -538,21 +593,8 @@ app_settings:
 		"random_file.txt": {},
 	}
 
-	expectedSettingsSchema := map[string]*CompiledStep{
-		"settings": {
-			Components: []*CompiledComponent{
-				{
-					JSONSchema: &gojsonschema.Schema{},
-					Component: &steps.Component{
-						JsonSchema: &steps.JSONSchemaComponent{Schema: ptr.String(string(expectedSettings)), Path: ptr.String("settings.json")},
-					},
-				},
-			},
-		},
-	}
-
-	expectedComps :=
-		&providerconfig.AppSettingsSchema{
+	expectedComps := []*providerconfig.SettingsForm{
+		{
 			Steps: []*steps.Step{
 				{
 					Id: "settings",
@@ -563,43 +605,123 @@ app_settings:
 					},
 				},
 			},
-		}
+		},
+	}
+
+	expectedSettingsSchema := []Form{
+		{
+			raw: expectedComps[0],
+			Steps: map[string]*CompiledStep{
+				"settings": {
+					Components: []*CompiledComponent{
+						{
+							JSONSchema: &gojsonschema.Schema{},
+							Component: &steps.Component{
+								JsonSchema: &steps.JSONSchemaComponent{Schema: ptr.String(string(expectedSettings)), Path: ptr.String("settings.json")},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 
 	expected := []*LoadedProviderConfig{
 		{
 			Config: &providerconfig.ProviderConfig{
-				Title:       "factorio",
-				AppSettings: expectedComps,
+				Title: "factorio",
+				Forms: expectedComps,
 			},
-			Filename:       "factorio/provider.yaml",
-			settingsSchema: expectedSettingsSchema,
+			Filename: "factorio/provider.yaml",
+			Forms:    expectedSettingsSchema,
 		},
 		{
 			Config: &providerconfig.ProviderConfig{
-				Title:       "minecraft",
-				AppSettings: expectedComps,
+				Title: "minecraft",
+				Forms: expectedComps,
 			},
-			Filename:       "minecraft/provider.yaml",
-			settingsSchema: expectedSettingsSchema,
+			Filename: "minecraft/provider.yaml",
+			Forms:    expectedSettingsSchema,
 		},
 		{
 			Config: &providerconfig.ProviderConfig{
-				Title:       "valheim",
-				AppSettings: expectedComps,
+				Title: "valheim",
+				Forms: expectedComps,
 			},
-			Filename:       "valheim/provider.yaml",
-			settingsSchema: expectedSettingsSchema,
+			Filename: "valheim/provider.yaml",
+			Forms:    expectedSettingsSchema,
 		},
 	}
 
 	// -- When
 	//
-	actual, err := p.Target.LoadAll(testFs)
+	actual, err := c.Target.LoadAll(testFs)
 
 	// -- Then
 	//
-	if p.NoError(err) {
-		p.EqualProviderConfigs(expected, actual)
+	if c.NoError(err) {
+		c.EqualProviderConfigs(expected, actual)
+	}
+}
+
+func (c *ClientTestSuite) TestMatches() {
+	// -- Given
+	//
+	given := []Form{
+		{
+			raw: &providerconfig.SettingsForm{
+				Screens: []providerconfig.Screen_Enum{
+					providerconfig.Screen_start,
+				},
+				Steps: []*steps.Step{
+					{
+						Id:    "step1",
+						Title: ptr.Ptr("step 1"),
+					},
+				},
+			},
+		},
+		{
+			raw: &providerconfig.SettingsForm{
+				Screens: []providerconfig.Screen_Enum{
+					providerconfig.Screen_update,
+				},
+				Steps: []*steps.Step{
+					{
+						Id:    "step2",
+						Title: ptr.Ptr("step 2"),
+					},
+				},
+			},
+		},
+		{
+			raw: &providerconfig.SettingsForm{
+				Screens: []providerconfig.Screen_Enum{
+					providerconfig.Screen_start,
+				},
+				Steps: []*steps.Step{
+					{
+						Id:    "step3",
+						Title: ptr.Ptr("step 3"),
+					},
+				},
+			},
+		},
+	}
+
+	query := FormQuery{Screen: providerconfig.Screen_start}
+
+	// -- When
+	//
+	actual := collection.Filter(given, func(t Form) bool {
+		return query.Matches(&t)
+	})
+
+	// -- Then
+	//
+	if c.Len(actual, 2) {
+		c.Equal(actual[0].raw.Steps[0].Id, "step1")
+		c.Equal(actual[1].raw.Steps[0].Id, "step3")
 	}
 }
 
@@ -608,56 +730,62 @@ type EqualProviderConfigsOpt func(o equalProviderConfigOpts) *equalProviderConfi
 type equalProviderConfigOpts struct {
 }
 
-func (p *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
+func (c *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
 	opts := &equalProviderConfigOpts{}
 	for _, v := range o {
 		opts = v(*opts)
 	}
 
-	p.Len(actual.settingsSchema, len(expected.settingsSchema))
+	c.Len(actual.Forms, len(expected.Forms))
 
-	for k, v := range expected.settingsSchema {
-		a, ok := actual.settingsSchema[k]
-		if !p.True(ok) {
-			continue
-		}
+	for i, form := range expected.Forms {
+		c.Len(actual.Forms[i].Steps, len(form.Steps))
 
-		if p.Len(a.Components, len(v.Components)) {
-			for i, expectedComp := range v.Components {
-				actualComp := a.Components[i]
+		c.Empty(cmp.Diff(actual.Forms[i].raw, form.raw, protocmp.Transform()))
 
-				if expectedComp.Component != nil {
-					p.Empty(cmp.Diff(expectedComp.Component, actualComp.Component, protocmp.Transform()))
-				}
-
-				if expectedComp.JSONSchema != nil {
-					p.NotNil(actualComp.JSONSchema)
-				} else {
-					p.Nil(actualComp.JSONSchema)
-				}
-
-				p.Equal(expectedComp.Component.GetJsonSchema().GetSchema(), actualComp.Component.GetJsonSchema().GetSchema())
+		for k, v := range form.Steps {
+			a, ok := actual.Forms[i].Steps[k]
+			if !c.True(ok) {
+				continue
 			}
-		}
 
-		p.Equal(v.Validation, a.Validation)
+			if c.Len(a.Components, len(v.Components)) {
+				for i, expectedComp := range v.Components {
+					actualComp := a.Components[i]
 
-		if v.Step != nil {
-			p.Empty(cmp.Diff(v.Step, a.Step, protocmp.Transform()))
+					if expectedComp.Component != nil {
+						c.Empty(cmp.Diff(expectedComp.Component, actualComp.Component, protocmp.Transform()))
+					}
+
+					if expectedComp.JSONSchema != nil {
+						c.NotNil(actualComp.JSONSchema)
+					} else {
+						c.Nil(actualComp.JSONSchema)
+					}
+
+					c.Equal(expectedComp.Component.GetJsonSchema().GetSchema(), actualComp.Component.GetJsonSchema().GetSchema())
+				}
+			}
+
+			c.Equal(v.Validation, a.Validation)
+
+			if v.Step != nil {
+				c.Empty(cmp.Diff(v.Step, a.Step, protocmp.Transform()))
+			}
 		}
 	}
 
-	p.Empty(cmp.Diff(expected.Config, actual.Config, protocmp.Transform()))
-	return p.Equal(expected.Filename, actual.Filename)
+	c.Empty(cmp.Diff(expected.Config, actual.Config, protocmp.Transform()))
+	return c.Equal(expected.Filename, actual.Filename)
 }
 
-func (p *ClientTestSuite) EqualProviderConfigs(expected, actual []*LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
-	if !p.Equal(len(expected), len(actual)) {
+func (c *ClientTestSuite) EqualProviderConfigs(expected, actual []*LoadedProviderConfig, o ...EqualProviderConfigsOpt) bool {
+	if !c.Equal(len(expected), len(actual)) {
 		return false
 	}
 
 	for idx, v := range expected {
-		if !p.EqualProviderConfig(v, actual[idx], o...) {
+		if !c.EqualProviderConfig(v, actual[idx], o...) {
 			fmt.Printf("element %d is not equal.", idx)
 			return false
 		}

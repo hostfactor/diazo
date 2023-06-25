@@ -8,6 +8,7 @@ import (
 	"github.com/hostfactor/api/go/blueprint"
 	"github.com/hostfactor/api/go/blueprint/steps"
 	"github.com/hostfactor/api/go/providerconfig"
+	"github.com/hostfactor/diazo/pkg/collection"
 	"github.com/hostfactor/diazo/pkg/doccache"
 	"github.com/hostfactor/diazo/pkg/ptr"
 	jsoniter "github.com/json-iterator/go"
@@ -31,45 +32,50 @@ type LoadedProviderConfig struct {
 	Filename    string
 	Settings    *gojsonschema.Schema
 	RawSettings string
-
-	// schemas by step IDs
-	settingsSchema map[string]*CompiledStep
+	Forms       []Form
 }
 
-func (l *LoadedProviderConfig) Validate(val *blueprint.AppSettings) *blueprint.Validation {
-	compVals := val.GetComponentValues()
+func (l *LoadedProviderConfig) Validate(val *blueprint.BlueprintData) *blueprint.Validation {
+	compVals := val.GetAppSettings().GetComponentValues()
 	if compVals == nil {
 		compVals = map[string]*blueprint.ValueSet{}
 	}
 
-	for k, v := range l.settingsSchema {
-		valSet, ok := compVals[k]
-		if !ok {
-			valid := &blueprint.Validation{
-				Problems: []*blueprint.ValidationProblem{
-					{
-						What:  fmt.Sprintf("Setting %s required.", k),
-						Where: k,
-					},
-				},
-			}
+	query := FormQuery{Screen: val.Screen}
+	matches := collection.Filter(l.Forms, func(t Form) bool {
+		return query.Matches(&t)
+	})
 
-			return valid
-		}
-
-		for _, val := range valSet.GetValues() {
-			err := v.Validate(val)
-			if err != nil {
+	for _, form := range matches {
+		for k, v := range form.Steps {
+			valSet, ok := compVals[k]
+			if !ok {
 				valid := &blueprint.Validation{
 					Problems: []*blueprint.ValidationProblem{
 						{
-							What:  err.Error(),
+							What:  fmt.Sprintf("Setting %s required.", k),
 							Where: k,
 						},
 					},
 				}
 
 				return valid
+			}
+
+			for _, val := range valSet.GetValues() {
+				err := v.Validate(val)
+				if err != nil {
+					valid := &blueprint.Validation{
+						Problems: []*blueprint.ValidationProblem{
+							{
+								What:  err.Error(),
+								Where: k,
+							},
+						},
+					}
+
+					return valid
+				}
 			}
 		}
 	}
@@ -79,6 +85,35 @@ func (l *LoadedProviderConfig) Validate(val *blueprint.AppSettings) *blueprint.V
 
 type Validator[T any] interface {
 	Validate(val T) error
+}
+
+type Form struct {
+	// Steps by ID
+	Steps map[string]*CompiledStep
+
+	raw *providerconfig.SettingsForm
+}
+
+type FormQuery struct {
+	Screen providerconfig.Screen_Enum
+}
+
+func (f *FormQuery) Matches(frm *Form) bool {
+	return f.MatchesForm(frm.raw)
+}
+
+func (f *FormQuery) MatchesForm(frm *providerconfig.SettingsForm) bool {
+	if f == nil {
+		return false
+	}
+
+	for _, v := range frm.GetScreens() {
+		if f.Screen == v {
+			return true
+		}
+	}
+
+	return false
 }
 
 type CompiledStep struct {
@@ -192,8 +227,7 @@ func (c *client) LoadAll(f fs.FS) ([]*LoadedProviderConfig, error) {
 func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, error) {
 	var err error
 	out := &LoadedProviderConfig{
-		Filename:       providerFilename,
-		settingsSchema: map[string]*CompiledStep{},
+		Filename: providerFilename,
 	}
 
 	out.Config, err = c.LoadProviderFile(f, providerFilename)
@@ -202,7 +236,7 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 	}
 
 	// TODO: remove block when fully deprecated default settings.json
-	if len(out.Config.GetAppSettings().GetSteps()) == 0 {
+	if len(out.Config.GetForms()) == 0 {
 		rawSettings, err := fs.ReadFile(f, DefaultSettingsFilename)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load json schema at %s: %w", DefaultSettingsFilename, err)
@@ -216,48 +250,57 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 			return nil, fmt.Errorf("invalid json schema %s: %w", DefaultSettingsFilename, err)
 		}
 	} else {
-		for i := range out.Config.GetAppSettings().GetSteps() {
-			step := out.Config.AppSettings.Steps[i]
-			compiled := &CompiledStep{
-				Step: step,
+		out.Forms = make([]Form, 0, len(out.Config.GetForms()))
+		for formIdx := range out.Config.Forms {
+			form := out.Config.Forms[formIdx]
+			frm := Form{
+				Steps: map[string]*CompiledStep{},
+				raw:   form,
 			}
-
-			if step.GetValidation().GetRegex() != "" {
-				reg, err := regexp.Compile(step.GetValidation().GetRegex())
-				if err != nil {
-					return nil, fmt.Errorf("invalid regex validation for step \"%s\": %w", step.GetId(), err)
+			for i := range form.GetSteps() {
+				step := form.Steps[i]
+				compiled := &CompiledStep{
+					Step: step,
 				}
 
-				compiled.Validation = &CompiledStepValidation{
-					Regex:   reg,
-					Message: step.GetValidation().GetMessage(),
-				}
-			}
-
-			for _, comp := range step.GetComponents() {
-				co := &CompiledComponent{
-					Component: comp,
-				}
-
-				if comp.GetJsonSchema().GetPath() != "" {
-					rawSettings, err := fs.ReadFile(f, comp.GetJsonSchema().GetPath())
+				if step.GetValidation().GetRegex() != "" {
+					reg, err := regexp.Compile(step.GetValidation().GetRegex())
 					if err != nil {
-						return nil, fmt.Errorf("failed to load json schema for step \"%s\": %w", step.GetId(), err)
+						return nil, fmt.Errorf("invalid regex validation for step \"%s\": %w", step.GetId(), err)
 					}
 
-					loader := gojsonschema.NewBytesLoader(rawSettings)
-					co.JSONSchema, err = gojsonschema.NewSchema(loader)
-					if err != nil {
-						return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
+					compiled.Validation = &CompiledStepValidation{
+						Regex:   reg,
+						Message: step.GetValidation().GetMessage(),
 					}
-
-					co.Component.JsonSchema.Schema = ptr.String(string(rawSettings))
 				}
 
-				compiled.Components = append(compiled.Components, co)
-			}
+				for _, comp := range step.GetComponents() {
+					co := &CompiledComponent{
+						Component: comp,
+					}
 
-			out.settingsSchema[step.GetId()] = compiled
+					if comp.GetJsonSchema().GetPath() != "" {
+						rawSettings, err := fs.ReadFile(f, comp.GetJsonSchema().GetPath())
+						if err != nil {
+							return nil, fmt.Errorf("failed to load json schema for step \"%s\": %w", step.GetId(), err)
+						}
+
+						loader := gojsonschema.NewBytesLoader(rawSettings)
+						co.JSONSchema, err = gojsonschema.NewSchema(loader)
+						if err != nil {
+							return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
+						}
+
+						co.Component.JsonSchema.Schema = ptr.String(string(rawSettings))
+					}
+
+					compiled.Components = append(compiled.Components, co)
+				}
+
+				frm.Steps[step.GetId()] = compiled
+			}
+			out.Forms = append(out.Forms, frm)
 		}
 	}
 
