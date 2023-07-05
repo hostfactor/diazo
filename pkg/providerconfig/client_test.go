@@ -137,11 +137,12 @@ volumes:
 			raw: expected.Config.Forms[0],
 			Steps: map[string]*CompiledStep{
 				"settings": {
-					Step: expected.Config.Forms[0].Steps[0],
-					Components: []*CompiledComponent{
+					step: expected.Config.Forms[0].Steps[0],
+					components: []*CompiledComponent{
 						{
-							Component:  expected.Config.Forms[0].Steps[0].Components[0],
-							JSONSchema: expectedSettingsSchema,
+							componentType: ComponentTypeJSONSchema,
+							component:     expected.Config.Forms[0].Steps[0].Components[0],
+							jsonSchema:    expectedSettingsSchema,
 						},
 					},
 				},
@@ -151,10 +152,11 @@ volumes:
 			raw: expected.Config.Forms[1],
 			Steps: map[string]*CompiledStep{
 				"select": {
-					Step: expected.Config.Forms[1].Steps[0],
-					Components: []*CompiledComponent{
+					step: expected.Config.Forms[1].Steps[0],
+					components: []*CompiledComponent{
 						{
-							Component: expected.Config.Forms[1].Steps[0].Components[0],
+							componentType: ComponentTypeFileSelect,
+							component:     expected.Config.Forms[1].Steps[0].Components[0],
 						},
 					},
 				},
@@ -357,13 +359,13 @@ func (c *ClientTestSuite) TestLoadJson() {
 			raw: expected.Config.Forms[0],
 			Steps: map[string]*CompiledStep{
 				"settings": {
-					Components: []*CompiledComponent{
+					components: []*CompiledComponent{
 						{
-							Component:  expected.Config.Forms[0].Steps[0].Components[0],
-							JSONSchema: expectedSettingsSchema,
+							component:  expected.Config.Forms[0].Steps[0].Components[0],
+							jsonSchema: expectedSettingsSchema,
 						},
 					},
-					Step: expected.Config.Forms[0].Steps[0],
+					step: expected.Config.Forms[0].Steps[0],
 				},
 			},
 		},
@@ -480,7 +482,7 @@ func (c *ClientTestSuite) TestLoadMissingSettingsJson() {
 	// -- Then
 	//
 	c.Nil(actual)
-	c.EqualError(err, "failed to load json schema for step \"settings\": open settings.json: file does not exist")
+	c.EqualError(err, "problem loading step \"settings\": failed to load json schema: open settings.json: file does not exist")
 }
 
 func (c *ClientTestSuite) TestLoadInvalidSettingsJson() {
@@ -521,7 +523,7 @@ func (c *ClientTestSuite) TestLoadInvalidSettingsJson() {
 	// -- Then
 	//
 	c.Nil(actual)
-	c.EqualError(err, "invalid json schema for step \"settings\": invalid character 'i' looking for beginning of value")
+	c.EqualError(err, "problem loading step \"settings\": invalid json schema: invalid character 'i' looking for beginning of value")
 }
 
 func (c *ClientTestSuite) TestLoadInvalidFileExt() {
@@ -600,7 +602,7 @@ forms:
 					Id: "settings",
 					Components: []*steps.Component{
 						{
-							JsonSchema: &steps.JSONSchemaComponent{Path: ptr.String("settings.json"), Schema: ptr.String(string(expectedSettings))},
+							JsonSchema: &steps.JSONSchemaComponent{Path: ptr.String("settings.json")},
 						},
 					},
 				},
@@ -608,21 +610,12 @@ forms:
 		},
 	}
 
-	expectedSettingsSchema := []Form{
+	f, _ := testFs.Sub("factorio")
+	exp, _ := CompileStep(f, expectedComps[0].Steps[0])
+	expForms := []Form{
 		{
-			raw: expectedComps[0],
-			Steps: map[string]*CompiledStep{
-				"settings": {
-					Components: []*CompiledComponent{
-						{
-							JSONSchema: &gojsonschema.Schema{},
-							Component: &steps.Component{
-								JsonSchema: &steps.JSONSchemaComponent{Schema: ptr.String(string(expectedSettings)), Path: ptr.String("settings.json")},
-							},
-						},
-					},
-				},
-			},
+			Steps: map[string]*CompiledStep{"settings": exp},
+			raw:   expectedComps[0],
 		},
 	}
 
@@ -633,7 +626,7 @@ forms:
 				Forms: expectedComps,
 			},
 			Filename: "factorio/provider.yaml",
-			Forms:    expectedSettingsSchema,
+			Forms:    expForms,
 		},
 		{
 			Config: &providerconfig.ProviderConfig{
@@ -641,7 +634,7 @@ forms:
 				Forms: expectedComps,
 			},
 			Filename: "minecraft/provider.yaml",
-			Forms:    expectedSettingsSchema,
+			Forms:    expForms,
 		},
 		{
 			Config: &providerconfig.ProviderConfig{
@@ -649,7 +642,7 @@ forms:
 				Forms: expectedComps,
 			},
 			Filename: "valheim/provider.yaml",
-			Forms:    expectedSettingsSchema,
+			Forms:    expForms,
 		},
 	}
 
@@ -749,28 +742,28 @@ func (c *ClientTestSuite) EqualProviderConfig(expected, actual *LoadedProviderCo
 				continue
 			}
 
-			if c.Len(a.Components, len(v.Components)) {
-				for i, expectedComp := range v.Components {
-					actualComp := a.Components[i]
+			if c.Len(a.components, len(v.components)) {
+				for i, expectedComp := range v.components {
+					actualComp := a.components[i]
 
-					if expectedComp.Component != nil {
-						c.Empty(cmp.Diff(expectedComp.Component, actualComp.Component, protocmp.Transform()))
+					if expectedComp.Component() != nil {
+						c.Empty(cmp.Diff(expectedComp.Component(), actualComp.component, protocmp.Transform()))
 					}
 
-					if expectedComp.JSONSchema != nil {
-						c.NotNil(actualComp.JSONSchema)
+					if expectedComp.jsonSchema != nil {
+						c.NotNil(actualComp.jsonSchema)
 					} else {
-						c.Nil(actualComp.JSONSchema)
+						c.Nil(actualComp.jsonSchema)
 					}
 
-					c.Equal(expectedComp.Component.GetJsonSchema().GetSchema(), actualComp.Component.GetJsonSchema().GetSchema())
+					c.Equal(expectedComp.component.GetJsonSchema().GetSchema(), actualComp.component.GetJsonSchema().GetSchema())
 				}
 			}
 
-			c.Equal(v.Validation, a.Validation)
+			c.Equal(v.validation, a.validation)
 
-			if v.Step != nil {
-				c.Empty(cmp.Diff(v.Step, a.Step, protocmp.Transform()))
+			if v.Step() != nil {
+				c.Empty(cmp.Diff(v.Step(), a.Step(), protocmp.Transform()))
 			}
 		}
 	}

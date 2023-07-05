@@ -10,6 +10,7 @@ import (
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/hostfactor/diazo/pkg/collection"
 	"github.com/hostfactor/diazo/pkg/doccache"
+	"github.com/hostfactor/diazo/pkg/fscache"
 	"github.com/hostfactor/diazo/pkg/ptr"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/xeipuuv/gojsonschema"
@@ -33,6 +34,8 @@ type LoadedProviderConfig struct {
 	Settings    *gojsonschema.Schema
 	RawSettings string
 	Forms       []Form
+	// The directory that houses the provider manifest.
+	Root fs.FS
 }
 
 func (l *LoadedProviderConfig) Validate(val *blueprint.BlueprintData) *blueprint.Validation {
@@ -117,18 +120,30 @@ func (f *FormQuery) MatchesForm(frm *providerconfig.SettingsForm) bool {
 }
 
 type CompiledStep struct {
-	Step       *steps.Step
-	Components []*CompiledComponent
-	Validation *CompiledStepValidation
+	step       *steps.Step
+	components []*CompiledComponent
+	validation *CompiledStepValidation
+}
+
+func (c *CompiledStep) Step() *steps.Step {
+	return &steps.Step{
+		Id:         c.step.Id,
+		Validation: c.step.Validation,
+		Components: collection.Map(c.components, func(f *CompiledComponent) *steps.Component {
+			return f.Component()
+		}),
+		Title:   c.step.Title,
+		Dynamic: c.step.Dynamic,
+	}
 }
 
 func (c *CompiledStep) Validate(val *blueprint.Value) error {
-	err := c.Validation.Validate(val)
+	err := c.validation.Validate(val)
 	if err != nil {
 		return err
 	}
 
-	for _, comp := range c.Components {
+	for _, comp := range c.components {
 		err = comp.Validate(val)
 		if err != nil {
 			return err
@@ -138,10 +153,67 @@ func (c *CompiledStep) Validate(val *blueprint.Value) error {
 	return err
 }
 
+type ComponentType int
+
+const (
+	ComponentTypeUnknown ComponentType = iota
+	ComponentTypeJSONSchema
+	ComponentTypeFileSelect
+	ComponentTypeText
+	ComponentTypeToggleButtonGroup
+	ComponentTypeToggleVersion
+)
+
+func CompileComponent(f fs.FS, comp *steps.Component) (*CompiledComponent, error) {
+	co := &CompiledComponent{
+		component: comp,
+	}
+
+	if comp.JsonSchema != nil {
+		co.componentType = ComponentTypeJSONSchema
+
+		if comp.JsonSchema.GetPath() != "" && comp.JsonSchema.GetSchema() == "" {
+			rawSettings, err := fs.ReadFile(f, comp.GetJsonSchema().GetPath())
+			if err != nil {
+				return nil, fmt.Errorf("failed to load json schema: %w", err)
+			}
+
+			loader := gojsonschema.NewBytesLoader(rawSettings)
+			co.jsonSchema, err = gojsonschema.NewSchema(loader)
+			if err != nil {
+				return nil, fmt.Errorf("invalid json schema: %w", err)
+			}
+
+			co.component.JsonSchema.Schema = ptr.String(string(rawSettings))
+		}
+	} else if comp.FileSelect != nil {
+		co.componentType = ComponentTypeFileSelect
+	} else if comp.Text != nil {
+		co.componentType = ComponentTypeText
+	} else if comp.Version != nil {
+		co.componentType = ComponentTypeToggleVersion
+	} else if len(comp.GetToggleButtonGroup().GetOptions()) > 0 {
+		co.componentType = ComponentTypeToggleButtonGroup
+	} else {
+		return nil, fmt.Errorf("unknown component")
+	}
+
+	return co, nil
+}
+
 type CompiledComponent struct {
-	Component    *steps.Component
-	JSONSchema   *gojsonschema.Schema
-	VersionRegex *regexp.Regexp
+	component     *steps.Component
+	jsonSchema    *gojsonschema.Schema
+	versionRegex  *regexp.Regexp
+	componentType ComponentType
+}
+
+func (c *CompiledComponent) Type() ComponentType {
+	return c.componentType
+}
+
+func (c *CompiledComponent) Component() *steps.Component {
+	return c.component
 }
 
 func (c *CompiledComponent) Validate(val *blueprint.Value) error {
@@ -149,8 +221,8 @@ func (c *CompiledComponent) Validate(val *blueprint.Value) error {
 		return nil
 	}
 
-	if c.JSONSchema != nil {
-		_, err := c.JSONSchema.Validate(gojsonschema.NewStringLoader(val.GetStringValue()))
+	if c.jsonSchema != nil {
+		_, err := c.jsonSchema.Validate(gojsonschema.NewStringLoader(val.GetStringValue()))
 		return err
 	}
 
@@ -230,6 +302,17 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 		Filename: providerFilename,
 	}
 
+	dir, _ := filepath.Split(providerFilename)
+	if dir == "" {
+		out.Root = f
+	} else {
+		out.Root, err = fs.Sub(f, dir)
+		if err != nil {
+			return nil, err
+		}
+	}
+	out.Root = fscache.New(out.Root)
+
 	out.Config, err = c.LoadProviderFile(f, providerFilename)
 	if err != nil {
 		return nil, err
@@ -259,43 +342,9 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 			}
 			for i := range form.GetSteps() {
 				step := form.Steps[i]
-				compiled := &CompiledStep{
-					Step: step,
-				}
-
-				if step.GetValidation().GetRegex() != "" {
-					reg, err := regexp.Compile(step.GetValidation().GetRegex())
-					if err != nil {
-						return nil, fmt.Errorf("invalid regex validation for step \"%s\": %w", step.GetId(), err)
-					}
-
-					compiled.Validation = &CompiledStepValidation{
-						Regex:   reg,
-						Message: step.GetValidation().GetMessage(),
-					}
-				}
-
-				for _, comp := range step.GetComponents() {
-					co := &CompiledComponent{
-						Component: comp,
-					}
-
-					if comp.GetJsonSchema().GetPath() != "" {
-						rawSettings, err := fs.ReadFile(f, comp.GetJsonSchema().GetPath())
-						if err != nil {
-							return nil, fmt.Errorf("failed to load json schema for step \"%s\": %w", step.GetId(), err)
-						}
-
-						loader := gojsonschema.NewBytesLoader(rawSettings)
-						co.JSONSchema, err = gojsonschema.NewSchema(loader)
-						if err != nil {
-							return nil, fmt.Errorf("invalid json schema for step \"%s\": %w", step.GetId(), err)
-						}
-
-						co.Component.JsonSchema.Schema = ptr.String(string(rawSettings))
-					}
-
-					compiled.Components = append(compiled.Components, co)
+				compiled, err := CompileStep(f, step)
+				if err != nil {
+					return nil, err
 				}
 
 				frm.Steps[step.GetId()] = compiled
@@ -344,4 +393,33 @@ func (c *client) LoadProviderFile(f fs.FS, fp string) (*providerconfig.ProviderC
 	}
 
 	return conf, err
+}
+
+func CompileStep(f fs.FS, step *steps.Step) (*CompiledStep, error) {
+	compiled := &CompiledStep{
+		step: step,
+	}
+
+	if step.GetValidation().GetRegex() != "" {
+		reg, err := regexp.Compile(step.GetValidation().GetRegex())
+		if err != nil {
+			return nil, fmt.Errorf("invalid regex validation for step \"%s\": %w", step.GetId(), err)
+		}
+
+		compiled.validation = &CompiledStepValidation{
+			Regex:   reg,
+			Message: step.GetValidation().GetMessage(),
+		}
+	}
+
+	for _, comp := range step.GetComponents() {
+		co, err := CompileComponent(f, comp)
+		if err != nil {
+			return nil, fmt.Errorf("problem loading step \"%s\": %w", step.GetId(), err)
+		}
+
+		compiled.components = append(compiled.components, co)
+	}
+
+	return compiled, nil
 }
