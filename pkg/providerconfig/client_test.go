@@ -702,7 +702,7 @@ func (c *ClientTestSuite) TestMatches() {
 		},
 	}
 
-	query := FormQuery{Screen: providerconfig.Screen_start}
+	query := FormQuery{Screen: ptr.Ptr(providerconfig.Screen_start)}
 
 	// -- When
 	//

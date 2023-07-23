@@ -44,7 +44,7 @@ func (l *LoadedProviderConfig) Validate(val *blueprint.BlueprintData) *blueprint
 		compVals = map[string]*blueprint.ValueSet{}
 	}
 
-	query := FormQuery{Screen: val.Screen}
+	query := FormQuery{Screen: &val.Screen}
 	matches := collection.Filter(l.Forms, func(t Form) bool {
 		return query.Matches(&t)
 	})
@@ -98,7 +98,7 @@ type Form struct {
 }
 
 type FormQuery struct {
-	Screen providerconfig.Screen_Enum
+	Screen *providerconfig.Screen_Enum
 }
 
 func (f *FormQuery) Matches(frm *Form) bool {
@@ -110,9 +110,17 @@ func (f *FormQuery) MatchesForm(frm *providerconfig.SettingsForm) bool {
 		return false
 	}
 
-	for _, v := range frm.GetScreens() {
-		if f.Screen == v {
+	if f.Screen != nil {
+		screen := ptr.Deref(f.Screen)
+
+		if screen == providerconfig.Screen_unknown {
 			return true
+		}
+
+		for _, v := range frm.GetScreens() {
+			if screen == v {
+				return true
+			}
 		}
 	}
 
