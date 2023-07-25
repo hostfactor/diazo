@@ -39,6 +39,7 @@ forms:
       components:
         - json_schema:
             path: settings.json
+          id: comp
     screens:
       - start
   - steps:
@@ -51,6 +52,7 @@ forms:
             description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
             destination:
               bucket_folder: saves
+          id: comp
     screens:
       - start
 volumes:
@@ -65,7 +67,7 @@ volumes:
 		"docs/getting_started.md": {
 			Data: []byte(`
 # Getting started			
-			`),
+      `),
 		},
 	}
 
@@ -99,6 +101,7 @@ volumes:
 							Id: "settings",
 							Components: []*steps.Component{
 								{
+									Id: "comp",
 									JsonSchema: &steps.JSONSchemaComponent{
 										Path:   ptr.String("settings.json"),
 										Schema: ptr.String(string(expectedSettings)),
@@ -117,6 +120,7 @@ volumes:
 							Id: "select",
 							Components: []*steps.Component{
 								{
+									Id: "comp",
 									FileSelect: &steps.FileSelectComponent{
 										AcceptProps: []string{".jar"},
 										HelpText:    ptr.Ptr("A *.zip file of your minecraft world data."),
@@ -200,6 +204,7 @@ volumes:
         description: 'The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.'
         destination:
           bucket_folder: saves
+      id: comp
 `),
 		},
 		"settings.json": {
@@ -208,7 +213,7 @@ volumes:
 		"docs/getting_started.md": {
 			Data: []byte(`
 # Getting started			
-			`),
+      `),
 		},
 	}
 
@@ -290,12 +295,13 @@ func (c *ClientTestSuite) TestLoadJson() {
     }
   ],
   "forms": [
-			{
+      {
     "steps": [
       {
         "id": "settings",
         "components": [
           {
+            "id": "comp",
             "json_schema": {
               "path": "settings.json"
             }
@@ -303,7 +309,7 @@ func (c *ClientTestSuite) TestLoadJson() {
         ]
       }
     ]
-			}
+      }
   ]
 }
 `),
@@ -340,6 +346,7 @@ func (c *ClientTestSuite) TestLoadJson() {
 							Id: "settings",
 							Components: []*steps.Component{
 								{
+									Id: "comp",
 									JsonSchema: &steps.JSONSchemaComponent{
 										Path:   ptr.String("settings.json"),
 										Schema: ptr.String(string(expectedSettings)),
@@ -455,12 +462,13 @@ func (c *ClientTestSuite) TestLoadMissingSettingsJson() {
 		"provider.json": {
 			Data: []byte(`{
   "forms": [
-			{
+      {
     "steps": [
       {
         "id": "settings",
         "components": [
           {
+            "id": "comp",
             "json_schema": {
               "path": "settings.json"
             }
@@ -468,10 +476,10 @@ func (c *ClientTestSuite) TestLoadMissingSettingsJson() {
         ]
       }
     ]
-			}
-			]
+      }
+      ]
   }
-			}`),
+      }`),
 		},
 	}
 
@@ -491,14 +499,15 @@ func (c *ClientTestSuite) TestLoadInvalidSettingsJson() {
 	testFs := fstest.MapFS{
 		"provider.json": {
 			Data: []byte(`
-			{
+      {
   "forms": [
-			{
+      {
     "steps": [
       {
         "id": "settings",
         "components": [
           {
+            "id": "comp",
             "json_schema": {
               "path": "settings.json"
             }
@@ -506,10 +515,10 @@ func (c *ClientTestSuite) TestLoadInvalidSettingsJson() {
         ]
       }
     ]
-			}
+      }
   ]
-			}
-			`),
+      }
+      `),
 		},
 		"settings.json": {
 			Data: []byte(`invalid file.`),
@@ -559,6 +568,7 @@ forms:
         components:
           - json_schema:
               path: settings.json
+            id: comp
       `),
 		},
 		"minecraft/settings.json": {
@@ -573,6 +583,7 @@ forms:
       components:
         - json_schema:
             path: settings.json
+          id: comp
       `),
 		},
 		"factorio/settings.json": {
@@ -587,6 +598,7 @@ forms:
       components:
         - json_schema:
             path: settings.json
+          id: comp
       `),
 		},
 		"valheim/settings.json": {
@@ -602,6 +614,7 @@ forms:
 					Id: "settings",
 					Components: []*steps.Component{
 						{
+							Id:         "comp",
 							JsonSchema: &steps.JSONSchemaComponent{Path: ptr.String("settings.json")},
 						},
 					},

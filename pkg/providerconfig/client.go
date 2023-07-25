@@ -177,6 +177,10 @@ func CompileComponent(f fs.FS, comp *steps.Component) (*CompiledComponent, error
 		component: comp,
 	}
 
+	if comp.GetId() == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
 	if comp.JsonSchema != nil {
 		co.componentType = ComponentTypeJSONSchema
 
@@ -203,7 +207,7 @@ func CompileComponent(f fs.FS, comp *steps.Component) (*CompiledComponent, error
 	} else if len(comp.GetToggleButtonGroup().GetOptions()) > 0 {
 		co.componentType = ComponentTypeToggleButtonGroup
 	} else {
-		return nil, fmt.Errorf("unknown component")
+		co.componentType = ComponentTypeUnknown
 	}
 
 	return co, nil
@@ -406,6 +410,14 @@ func (c *client) LoadProviderFile(f fs.FS, fp string) (*providerconfig.ProviderC
 func CompileStep(f fs.FS, step *steps.Step) (*CompiledStep, error) {
 	compiled := &CompiledStep{
 		step: step,
+	}
+
+	if step.GetId() == "" {
+		return nil, fmt.Errorf("step ID is required")
+	}
+
+	if len(step.GetComponents()) == 0 {
+		return nil, fmt.Errorf("step \"%s\" must have at least one component", step.GetId())
 	}
 
 	if step.GetValidation().GetRegex() != "" {
