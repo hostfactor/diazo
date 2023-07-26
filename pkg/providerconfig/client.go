@@ -53,32 +53,21 @@ func (l *LoadedProviderConfig) Validate(val *blueprint.BlueprintData) *blueprint
 		for k, v := range form.Steps {
 			valSet, ok := compVals[k]
 			if !ok {
+				continue
+			}
+
+			err := v.Validate(valSet)
+			if err != nil {
 				valid := &blueprint.Validation{
 					Problems: []*blueprint.ValidationProblem{
 						{
-							What:  fmt.Sprintf("Setting %s required.", k),
+							What:  err.Error(),
 							Where: k,
 						},
 					},
 				}
 
 				return valid
-			}
-
-			for _, val := range valSet.GetValues() {
-				err := v.Validate(val)
-				if err != nil {
-					valid := &blueprint.Validation{
-						Problems: []*blueprint.ValidationProblem{
-							{
-								What:  err.Error(),
-								Where: k,
-							},
-						},
-					}
-
-					return valid
-				}
 			}
 		}
 	}
@@ -135,8 +124,7 @@ type CompiledStep struct {
 
 func (c *CompiledStep) Step() *steps.Step {
 	return &steps.Step{
-		Id:         c.step.Id,
-		Validation: c.step.Validation,
+		Id: c.step.Id,
 		Components: collection.Map(c.components, func(f *CompiledComponent) *steps.Component {
 			return f.Component()
 		}),
@@ -145,20 +133,15 @@ func (c *CompiledStep) Step() *steps.Step {
 	}
 }
 
-func (c *CompiledStep) Validate(val *blueprint.Value) error {
-	err := c.validation.Validate(val)
-	if err != nil {
-		return err
-	}
-
+func (c *CompiledStep) Validate(val *blueprint.ValueSet) error {
 	for _, comp := range c.components {
-		err = comp.Validate(val)
+		err := comp.Validate(val.GetValues()[comp.Component().GetId()])
 		if err != nil {
 			return err
 		}
 	}
 
-	return err
+	return nil
 }
 
 type ComponentType int
@@ -418,18 +401,6 @@ func CompileStep(f fs.FS, step *steps.Step) (*CompiledStep, error) {
 
 	if len(step.GetComponents()) == 0 {
 		return nil, fmt.Errorf("step \"%s\" must have at least one component", step.GetId())
-	}
-
-	if step.GetValidation().GetRegex() != "" {
-		reg, err := regexp.Compile(step.GetValidation().GetRegex())
-		if err != nil {
-			return nil, fmt.Errorf("invalid regex validation for step \"%s\": %w", step.GetId(), err)
-		}
-
-		compiled.validation = &CompiledStepValidation{
-			Regex:   reg,
-			Message: step.GetValidation().GetMessage(),
-		}
 	}
 
 	for _, comp := range step.GetComponents() {

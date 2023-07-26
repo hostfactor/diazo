@@ -10,7 +10,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
-	github.com/hostfactor/api/go v0.0.0-20230623193212-a89157bb35f7
+	github.com/hostfactor/api/go v0.0.0-20230726001442-1c85fed05f77
 	github.com/json-iterator/go v1.1.12
 	github.com/mattn/go-zglob v0.0.3
 	github.com/mholt/archiver/v3 v3.5.1
@@ -114,6 +114,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace (
-	github.com/hostfactor/api/go => ../api/go
-)
+replace github.com/hostfactor/api/go => ../api/go
