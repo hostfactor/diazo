@@ -6,11 +6,12 @@ require (
 	github.com/bxcodec/faker/v3 v3.8.0
 	github.com/containers/common v0.47.3
 	github.com/containers/image/v5 v5.19.1
+	github.com/eddieowens/opts v0.1.0
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6
-	github.com/hostfactor/api/go v0.0.0-20230726001442-1c85fed05f77
+	github.com/hostfactor/api/go v0.0.0-20230809044351-cf77e3128551
 	github.com/json-iterator/go v1.1.12
 	github.com/mattn/go-zglob v0.0.3
 	github.com/mholt/archiver/v3 v3.5.1
@@ -19,6 +20,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	golang.org/x/text v0.3.7
+	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
@@ -46,7 +48,6 @@ require (
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
-	github.com/eddieowens/opts v0.1.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -108,7 +109,6 @@ require (
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
-	google.golang.org/grpc v1.44.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

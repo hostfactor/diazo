@@ -151,7 +151,7 @@ const (
 	ComponentTypeJSONSchema
 	ComponentTypeFileSelect
 	ComponentTypeText
-	ComponentTypeToggleButtonGroup
+	ComponentTypeSelectButton
 	ComponentTypeToggleVersion
 )
 
@@ -187,8 +187,8 @@ func CompileComponent(f fs.FS, comp *steps.Component) (*CompiledComponent, error
 		co.componentType = ComponentTypeText
 	} else if comp.Version != nil {
 		co.componentType = ComponentTypeToggleVersion
-	} else if len(comp.GetToggleButtonGroup().GetOptions()) > 0 {
-		co.componentType = ComponentTypeToggleButtonGroup
+	} else if len(comp.GetSelectButton().GetOptions()) > 0 {
+		co.componentType = ComponentTypeSelectButton
 	} else {
 		co.componentType = ComponentTypeUnknown
 	}
