@@ -5,7 +5,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hostfactor/api/go/blueprint/steps"
 	"github.com/hostfactor/api/go/providerconfig"
-	"github.com/hostfactor/diazo/pkg/collection"
 	"github.com/hostfactor/diazo/pkg/ptr"
 	"github.com/stretchr/testify/suite"
 	"github.com/xeipuuv/gojsonschema"
@@ -93,9 +92,6 @@ volumes:
 			},
 			Forms: []*providerconfig.SettingsForm{
 				{
-					Screens: []providerconfig.Screen_Enum{
-						providerconfig.Screen_start,
-					},
 					Steps: []*steps.Step{
 						{
 							Id: "settings",
@@ -112,9 +108,6 @@ volumes:
 					},
 				},
 				{
-					Screens: []providerconfig.Screen_Enum{
-						providerconfig.Screen_start,
-					},
 					Steps: []*steps.Step{
 						{
 							Id: "select",
@@ -667,67 +660,6 @@ forms:
 	//
 	if c.NoError(err) {
 		c.EqualProviderConfigs(expected, actual)
-	}
-}
-
-func (c *ClientTestSuite) TestMatches() {
-	// -- Given
-	//
-	given := []Form{
-		{
-			raw: &providerconfig.SettingsForm{
-				Screens: []providerconfig.Screen_Enum{
-					providerconfig.Screen_start,
-				},
-				Steps: []*steps.Step{
-					{
-						Id:    "step1",
-						Title: ptr.Ptr("step 1"),
-					},
-				},
-			},
-		},
-		{
-			raw: &providerconfig.SettingsForm{
-				Screens: []providerconfig.Screen_Enum{
-					providerconfig.Screen_update,
-				},
-				Steps: []*steps.Step{
-					{
-						Id:    "step2",
-						Title: ptr.Ptr("step 2"),
-					},
-				},
-			},
-		},
-		{
-			raw: &providerconfig.SettingsForm{
-				Screens: []providerconfig.Screen_Enum{
-					providerconfig.Screen_start,
-				},
-				Steps: []*steps.Step{
-					{
-						Id:    "step3",
-						Title: ptr.Ptr("step 3"),
-					},
-				},
-			},
-		},
-	}
-
-	query := FormQuery{Screen: ptr.Ptr(providerconfig.Screen_start)}
-
-	// -- When
-	//
-	actual := collection.Filter(given, func(t Form) bool {
-		return query.Matches(&t)
-	})
-
-	// -- Then
-	//
-	if c.Len(actual, 2) {
-		c.Equal(actual[0].raw.Steps[0].Id, "step1")
-		c.Equal(actual[1].raw.Steps[0].Id, "step3")
 	}
 }
 

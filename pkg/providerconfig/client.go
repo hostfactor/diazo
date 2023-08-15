@@ -44,12 +44,7 @@ func (l *LoadedProviderConfig) Validate(val *blueprint.BlueprintData) *blueprint
 		compVals = map[string]*blueprint.ValueSet{}
 	}
 
-	query := FormQuery{Screen: &val.Screen}
-	matches := collection.Filter(l.Forms, func(t Form) bool {
-		return query.Matches(&t)
-	})
-
-	for _, form := range matches {
+	for _, form := range l.Forms {
 		for k, v := range form.Steps {
 			valSet, ok := compVals[k]
 			if !ok {
@@ -84,36 +79,6 @@ type Form struct {
 	Steps map[string]*CompiledStep
 
 	raw *providerconfig.SettingsForm
-}
-
-type FormQuery struct {
-	Screen *providerconfig.Screen_Enum
-}
-
-func (f *FormQuery) Matches(frm *Form) bool {
-	return f.MatchesForm(frm.raw)
-}
-
-func (f *FormQuery) MatchesForm(frm *providerconfig.SettingsForm) bool {
-	if f == nil {
-		return false
-	}
-
-	if f.Screen != nil {
-		screen := ptr.Deref(f.Screen)
-
-		if screen == providerconfig.Screen_unknown {
-			return true
-		}
-
-		for _, v := range frm.GetScreens() {
-			if screen == v {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 type CompiledStep struct {
