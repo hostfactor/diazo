@@ -95,6 +95,7 @@ func (c *CompiledStep) Step() *steps.Step {
 		}),
 		Title:   c.step.Title,
 		Dynamic: c.step.Dynamic,
+		Skip:    c.step.Skip,
 	}
 }
 
