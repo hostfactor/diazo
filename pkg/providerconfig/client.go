@@ -315,23 +315,9 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 			return nil, fmt.Errorf("invalid json schema %s: %w", DefaultSettingsFilename, err)
 		}
 	} else {
-		out.Forms = make([]Form, 0, len(out.Config.GetForms()))
-		for formIdx := range out.Config.Forms {
-			form := out.Config.Forms[formIdx]
-			frm := Form{
-				Steps: map[string]*CompiledStep{},
-				raw:   form,
-			}
-			for i := range form.GetSteps() {
-				step := form.Steps[i]
-				compiled, err := CompileStep(f, step)
-				if err != nil {
-					return nil, err
-				}
-
-				frm.Steps[step.GetId()] = compiled
-			}
-			out.Forms = append(out.Forms, frm)
+		out.Forms, err = CompileForms(f, out.Config.GetForms()...)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -400,4 +386,35 @@ func CompileStep(f fs.FS, step *steps.Step) (*CompiledStep, error) {
 	}
 
 	return compiled, nil
+}
+
+func CompileForm(f fs.FS, form *providerconfig.SettingsForm) (*Form, error) {
+	frm := &Form{
+		Steps: map[string]*CompiledStep{},
+		raw:   form,
+	}
+
+	for i := range form.GetSteps() {
+		step := form.Steps[i]
+		compiled, err := CompileStep(f, step)
+		if err != nil {
+			return nil, err
+		}
+
+		frm.Steps[step.GetId()] = compiled
+	}
+
+	return frm, nil
+}
+
+func CompileForms(f fs.FS, forms ...*providerconfig.SettingsForm) ([]Form, error) {
+	out := make([]Form, 0, len(forms))
+	for _, form := range forms {
+		frm, err := CompileForm(f, form)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *frm)
+	}
+	return out, nil
 }
