@@ -87,6 +87,13 @@ type CompiledStep struct {
 	validation *CompiledStepValidation
 }
 
+func (c *CompiledStep) Components() []*CompiledComponent {
+	if c == nil {
+		return nil
+	}
+	return c.components
+}
+
 func (c *CompiledStep) Step() *steps.Step {
 	return &steps.Step{
 		Id: c.step.Id,
@@ -167,6 +174,20 @@ type CompiledComponent struct {
 	jsonSchema    *gojsonschema.Schema
 	versionRegex  *regexp.Regexp
 	componentType ComponentType
+}
+
+func (c *CompiledComponent) DefaultValue() *blueprint.Value {
+	switch c.componentType {
+	case ComponentTypeSelectButton:
+		opt := collection.Find(c.component.GetSelectButton().GetOptions(), func(t *steps.Button) bool {
+			return t.GetDefault()
+		})
+		if opt != nil {
+			return &blueprint.Value{StringValue: opt.Value}
+		}
+	}
+
+	return nil
 }
 
 func (c *CompiledComponent) Type() ComponentType {
