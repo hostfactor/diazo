@@ -6,6 +6,15 @@ func Ptr[T any](t T) *T {
 	return &t
 }
 
+// NonZeroPtr creates a ptr to the variable. If the variable is zero, a nil ptr is returned.
+func NonZeroPtr[T comparable](t T) *T {
+	var z T
+	if t == z {
+		return nil
+	}
+	return &t
+}
+
 func Deref[T any](t *T) (out T) {
 	if t == nil {
 		return out
