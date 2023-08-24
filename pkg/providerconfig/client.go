@@ -276,42 +276,31 @@ func (c *client) LoadAll(f fs.FS) ([]*LoadedProviderConfig, error) {
 }
 
 func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, error) {
-	var err error
-	out := &LoadedProviderConfig{
-		Filename: providerFilename,
-	}
-
 	dir, _ := filepath.Split(providerFilename)
-	if dir == "" {
-		out.Root = f
-	} else {
-		out.Root, err = fs.Sub(f, dir)
+	root := f
+	var err error
+	if dir != "" {
+		root, err = fs.Sub(f, dir)
 		if err != nil {
 			return nil, err
 		}
 	}
-	out.Root = fscache.New(out.Root)
+	root = fscache.New(root)
 
-	out.Config, err = c.LoadProviderFile(f, providerFilename)
+	raw, err := c.LoadProviderFile(root, providerFilename)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(out.Config.GetForms()) == 0 {
-		out.Config.Forms = defaultForms(out.Config)
-	}
-
-	out.Forms, err = CompileForms(f, out.Config.GetForms()...)
+	comp, err := CompileProviderConfig(root, raw)
 	if err != nil {
 		return nil, err
 	}
 
-	out.DocCache, err = doccache.New(f, out.Config)
-	if err != nil {
-		return nil, err
-	}
+	comp.Root = root
+	comp.Filename = providerFilename
 
-	return out, nil
+	return comp, nil
 }
 
 func (c *client) LoadProviderFile(f fs.FS, fp string) (*providerconfig.ProviderConfig, error) {
@@ -346,6 +335,29 @@ func (c *client) LoadProviderFile(f fs.FS, fp string) (*providerconfig.ProviderC
 	}
 
 	return conf, err
+}
+
+func CompileProviderConfig(f fs.FS, conf *providerconfig.ProviderConfig) (*LoadedProviderConfig, error) {
+	out := &LoadedProviderConfig{
+		Config: conf,
+	}
+	var err error
+
+	if len(out.Config.GetForms()) == 0 {
+		out.Config.Forms = defaultForms(out.Config)
+	}
+
+	out.Forms, err = CompileForms(f, out.Config.GetForms()...)
+	if err != nil {
+		return nil, err
+	}
+
+	out.DocCache, err = doccache.New(f, out.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func CompileStep(f fs.FS, step *steps.Step) (*CompiledStep, error) {
