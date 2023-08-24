@@ -212,40 +212,6 @@ volumes:
 
 	expectedSettingsSchema, _ := gojsonschema.NewSchema(gojsonschema.NewBytesLoader(expectedSettings))
 
-	expected := &LoadedProviderConfig{
-		Config: &providerconfig.ProviderConfig{
-			Title: "minecraft",
-			Image: "itzg/minecraft-server",
-			Docs: &providerconfig.Docs{
-				Entries: []*providerconfig.Docs_Entry{
-					{
-						Title: "Getting started",
-						Path:  "./docs/getting_started.md",
-					},
-				},
-			},
-			Volumes: []*providerconfig.Volume{
-				{
-					Name:  "derp",
-					Mount: &providerconfig.VolumeMount{Path: "/path/to/file"},
-					Source: &providerconfig.VolumeSource{
-						FileInput: &providerconfig.FileInputSpec{
-							AcceptProps: []string{".jar"},
-							HelpText:    "A *.zip file of your minecraft world data.",
-							Destination: &providerconfig.FileInputDestination{BucketFolder: "saves"},
-							Description: "The save file that will be used by your server. We will automatically backup any new saves to [your save]_autosave.",
-						},
-					},
-				},
-			},
-		},
-		Filename: "provider.yaml",
-		Forms:    []Form{},
-	}
-
-	expected.Settings = expectedSettingsSchema
-	expected.RawSettings = string(expectedSettings)
-
 	// -- When
 	//
 	actual, err := DefaultClient.Load(testFs, "provider.yaml")
@@ -253,7 +219,13 @@ volumes:
 	// -- Then
 	//
 	if c.NoError(err) {
-		c.EqualProviderConfig(expected, actual)
+		c.Len(actual.Forms[0].Steps, 1)
+		comps := actual.Forms[0].Steps["settings"].Components()
+		c.Len(comps, 3)
+		c.Equal(ComponentTypeVersion, comps[0].Type())
+		c.Equal(ComponentTypeFileSelect, comps[1].Type())
+		c.Equal(ComponentTypeJSONSchema, comps[2].Type())
+		c.Equal(comps[2].jsonSchema, expectedSettingsSchema)
 	}
 }
 

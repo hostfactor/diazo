@@ -24,16 +24,13 @@ var DefaultClient = NewClient()
 
 var (
 	DefaultProviderFilename = "provider.yaml"
-	DefaultSettingsFilename = "settings.json"
 )
 
 type LoadedProviderConfig struct {
-	Config      *providerconfig.ProviderConfig
-	DocCache    doccache.DocCache
-	Filename    string
-	Settings    *gojsonschema.Schema
-	RawSettings string
-	Forms       []Form
+	Config   *providerconfig.ProviderConfig
+	DocCache doccache.DocCache
+	Filename string
+	Forms    []Form
 	// The directory that houses the provider manifest.
 	Root fs.FS
 }
@@ -125,7 +122,7 @@ const (
 	ComponentTypeFileSelect
 	ComponentTypeText
 	ComponentTypeSelectButton
-	ComponentTypeToggleVersion
+	ComponentTypeVersion
 )
 
 func CompileComponent(f fs.FS, comp *steps.Component) (*CompiledComponent, error) {
@@ -159,7 +156,7 @@ func CompileComponent(f fs.FS, comp *steps.Component) (*CompiledComponent, error
 	} else if comp.Text != nil {
 		co.componentType = ComponentTypeText
 	} else if comp.Version != nil {
-		co.componentType = ComponentTypeToggleVersion
+		co.componentType = ComponentTypeVersion
 	} else if len(comp.GetSelectButton().GetOptions()) > 0 {
 		co.componentType = ComponentTypeSelectButton
 	} else {
@@ -300,25 +297,13 @@ func (c *client) Load(f fs.FS, providerFilename string) (*LoadedProviderConfig, 
 		return nil, err
 	}
 
-	// TODO: remove block when fully deprecated default settings.json
 	if len(out.Config.GetForms()) == 0 {
-		rawSettings, err := fs.ReadFile(f, DefaultSettingsFilename)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load json schema at %s: %w", DefaultSettingsFilename, err)
-		}
+		out.Config.Forms = defaultForms(out.Config)
+	}
 
-		out.RawSettings = string(rawSettings)
-
-		loader := gojsonschema.NewBytesLoader(rawSettings)
-		out.Settings, err = gojsonschema.NewSchema(loader)
-		if err != nil {
-			return nil, fmt.Errorf("invalid json schema %s: %w", DefaultSettingsFilename, err)
-		}
-	} else {
-		out.Forms, err = CompileForms(f, out.Config.GetForms()...)
-		if err != nil {
-			return nil, err
-		}
+	out.Forms, err = CompileForms(f, out.Config.GetForms()...)
+	if err != nil {
+		return nil, err
 	}
 
 	out.DocCache, err = doccache.New(f, out.Config)
