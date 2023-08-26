@@ -50,6 +50,12 @@ func IndexStringer[V fmt.Stringer](sl []V) map[string]V {
 	})
 }
 
+func RemoveIdx[T any](s []T, i int) []T {
+	ret := make([]T, 0, len(s))
+	ret = append(ret, s[:i]...)
+	return append(ret, s[i+1:]...)
+}
+
 func Index[K comparable, V any](sl []V, f IndexFunc[K, V]) map[K]V {
 	m := map[K]V{}
 	for i, v := range sl {
