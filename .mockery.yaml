@@ -1,0 +1,11 @@
+recursive: true
+all: true
+filename: "mock_{{.InterfaceNameSnake}}.go"
+mockname: "{{.InterfaceName}}"
+outpkg: "{{base .PackageName}}mocks"
+with-expecter: true
+dir: "pkg/mocks/{{.PackageName}}mocks"
+packages:
+  "github.com/hostfactor/diazo/pkg/userfiles":
+    config:
+      recursive: false
