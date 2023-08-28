@@ -9,13 +9,21 @@ type IndexFunc[K comparable, V any] func(v V) K
 type MapFunc[F, T any] func(f F) T
 
 func Find[T any](sl []T, f FinderFunc[T]) (out T) {
-	for _, v := range sl {
+	idx := FindIdx(sl, f)
+	if idx < 0 {
+		return
+	}
+	return sl[idx]
+}
+
+func FindIdx[T any](sl []T, f FinderFunc[T]) int {
+	for i, v := range sl {
 		if f(v) {
-			return v
+			return i
 		}
 	}
 
-	return
+	return -1
 }
 
 func Map[F, T any](sl []F, f MapFunc[F, T]) []T {
