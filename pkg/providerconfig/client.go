@@ -27,10 +27,11 @@ var (
 )
 
 type LoadedProviderConfig struct {
-	Config   *providerconfig.ProviderConfig
-	DocCache doccache.DocCache
-	Filename string
-	Forms    []Form
+	Config         *providerconfig.ProviderConfig
+	DocCache       doccache.DocCache
+	Filename       string
+	Forms          []Form
+	TagRegexFilter *regexp.Regexp
 	// The directory that houses the provider manifest.
 	Root fs.FS
 }
@@ -355,6 +356,13 @@ func CompileProviderConfig(f fs.FS, conf *providerconfig.ProviderConfig) (*Loade
 	out.DocCache, err = doccache.New(f, out.Config)
 	if err != nil {
 		return nil, err
+	}
+
+	if conf.TagRegexFilter != nil {
+		out.TagRegexFilter, err = regexp.Compile(conf.GetTagRegexFilter())
+		if err != nil {
+			return nil, fmt.Errorf("%s is not valid regex: %w", conf.GetTagRegexFilter(), err)
+		}
 	}
 
 	return out, nil
