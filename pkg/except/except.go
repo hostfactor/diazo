@@ -67,7 +67,8 @@ func ToGRPC(err error) error {
 		return err
 	}
 
-	v, ok := Unwrap(err).(*Error)
+	var v *Error
+	ok := errors.As(err, &v)
 	if !ok {
 		return status.Error(ReasonToCode(exception.Reason_REASON_INTERNAL), err.Error())
 	}
@@ -128,14 +129,16 @@ func ReasonFromErr(err error) exception.Reason {
 		return exception.Reason_REASON_UNKNOWN
 	}
 
-	v, ok := err.(*Error)
-	if v == nil {
-		return exception.Reason_REASON_UNKNOWN
-	}
-
-	if ok {
+	var v *Error
+	if errors.As(err, &v) {
 		return v.Reason
 	}
+
+	st, ok := status.FromError(err)
+	if ok {
+		return CodeToReason(st.Code())
+	}
+
 	return exception.Reason_REASON_INTERNAL
 }
 
@@ -217,7 +220,8 @@ func (e *Error) Is(err error) bool {
 		return false
 	}
 
-	v, ok := err.(*Error)
+	var v *Error
+	ok := errors.As(err, &v)
 	if !ok {
 		return false
 	}
