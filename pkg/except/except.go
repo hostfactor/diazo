@@ -6,6 +6,7 @@ import (
 	"github.com/hostfactor/api/go/exception"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io/fs"
 	"net/http"
 )
 
@@ -137,6 +138,18 @@ func ReasonFromErr(err error) exception.Reason {
 	st, ok := status.FromError(err)
 	if ok {
 		return CodeToReason(st.Code())
+	}
+
+	if errors.Is(err, fs.ErrPermission) {
+		return exception.Reason_REASON_UNAUTHORIZED
+	} else if errors.Is(err, fs.ErrExist) {
+		return exception.Reason_REASON_ALREADY_EXISTS
+	} else if errors.Is(err, fs.ErrNotExist) {
+		return exception.Reason_REASON_NOT_FOUND
+	} else if errors.Is(err, fs.ErrClosed) {
+		return exception.Reason_REASON_INVALID
+	} else if errors.Is(err, fs.ErrInvalid) {
+		return exception.Reason_REASON_INVALID
 	}
 
 	return exception.Reason_REASON_INTERNAL
