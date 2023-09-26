@@ -89,3 +89,17 @@ func All[T any](sl []T, f FinderFunc[T]) bool {
 	}
 	return out
 }
+
+func Split[T any](sl []T, finder FinderFunc[T]) (t []T, f []T) {
+	t = make([]T, 0, len(sl))
+	f = make([]T, 0, len(sl))
+	for i := range sl {
+		v := sl[i]
+		if finder(v) {
+			t = append(t, v)
+		} else {
+			f = append(f, v)
+		}
+	}
+	return
+}

@@ -1,101 +1,113 @@
 package volume
 
 import (
-	"github.com/eddieowens/opts"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/api/go/providerconfig"
-	"github.com/hostfactor/diazo/pkg/fileutils"
-	"github.com/hostfactor/diazo/pkg/userfiles"
-	"os"
-	"path"
+	"github.com/hostfactor/diazo/pkg/actions/fileactions"
+	"github.com/hostfactor/diazo/pkg/collection"
+	"github.com/hostfactor/diazo/pkg/filesys"
+	"io/fs"
 	"path/filepath"
+	"strings"
 )
 
-type Mounter interface {
-	MountFile(vol *providerconfig.Volume, fp string, op ...opts.Opt[MountFileOpts]) (int64, error)
-
-	// MountFileSelection Deprecated. Use MountFile instead.
-	MountFileSelection(vol *providerconfig.Volume, sel *filesystem.FileSelection) (int64, error)
+type Mount interface {
+	fs.ReadFileFS
+	fs.ReadDirFS
 }
 
-// NewMounter creates a new Mounter. Ultimately, it acts as a wrapper to convert filesystem definitions to userfiles.Client
-// calls. The basePath is a prefix path used for all keys with the userfiles.Client.
-func NewMounter(cl userfiles.Client, basePath string) Mounter {
-	return &mounter{
-		UserfilesClient: cl,
-		BasePath:        basePath,
+func NewMount(vol *providerconfig.VolumeMount, f fs.FS) Mount {
+	policies := collection.Map(vol.GetAccess(), func(f *filesystem.FileAccessPolicy) *filesys.AccessPolicy {
+		return filesys.NewAccessPolicy(f)
+	})
+
+	recurs, other := collection.Split(policies, func(t *filesys.AccessPolicy) bool {
+		return t.Wrapped.GetRecursive()
+	})
+
+	return &mount{
+		FS:                f,
+		Mount:             vol,
+		RootPolicies:      other,
+		RecursivePolicies: recurs,
 	}
 }
 
-type MountFileOpts struct {
-	DestPath string
+type mount struct {
+	FS    fs.FS
+	Mount *providerconfig.VolumeMount
+
+	RootPolicies      []*filesys.AccessPolicy
+	RecursivePolicies []*filesys.AccessPolicy
 }
 
-func (m MountFileOpts) DefaultOptions() MountFileOpts {
-	return MountFileOpts{}
-}
+func (m *mount) ReadDir(fp string) ([]fs.DirEntry, error) {
+	fp, policies := m.cleanFp(fp)
 
-// WithDestPath overwrite the default destination path that the file is mounted to.
-func WithDestPath(dst string) opts.Opt[MountFileOpts] {
-	return func(m *MountFileOpts) {
-		m.DestPath = filepath.Clean(dst)
-	}
-}
-
-type mounter struct {
-	UserfilesClient userfiles.Client
-	BasePath        string
-}
-
-func (m *mounter) MountFile(vol *providerconfig.Volume, fp string, op ...opts.Opt[MountFileOpts]) (int64, error) {
-	o := opts.DefaultApply(op...)
-	name := vol.Name
-	if name == "save" {
-		// maintain backwards compat.
-		name = "saves"
+	if len(policies) == 0 {
+		return []fs.DirEntry{}, nil
 	}
 
-	reader, err := m.UserfilesClient.FetchFileReader(path.Join(m.BasePath, name, fp))
+	de, err := fs.ReadDir(m.FS, fp)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	defer func() {
-		_ = reader.Reader.Close()
-	}()
+	de = collection.Filter(de, func(t fs.DirEntry) bool {
+		return m.hasAccess(filepath.Join(fp, t.Name()), filesys.FilePermRead, policies)
+	})
 
-	_, filename := path.Split(reader.Key)
-	target := o.DestPath
-	if target == "" {
-		target = filepath.Join(vol.GetMount().GetPath(), filename)
-	} else if filepath.Ext(target) == "" {
-		target = filepath.Join(vol.GetMount().GetPath(), target, filename)
-	} else {
-		target = filepath.Join(vol.GetMount().GetPath(), target)
-	}
-	_ = os.MkdirAll(filepath.Dir(target), os.ModePerm)
-
-	return fileutils.WriteFileFromReader(target, reader.Reader)
+	return collection.Map(de, func(f fs.DirEntry) fs.DirEntry {
+		return filesys.NewDirEntry(fp, f)
+	}), nil
 }
 
-func (m *mounter) MountFileSelection(vol *providerconfig.Volume, sel *filesystem.FileSelection) (int64, error) {
-	bytesDownloaded := int64(0)
-	for _, loc := range sel.GetLocations() {
-		w, err := m.MountFile(vol, loc.GetBucketFile().GetName())
-		if err != nil {
-			return bytesDownloaded, err
+func (m *mount) Open(fp string) (fs.File, error) {
+	fp, policies := m.cleanFp(fp)
+
+	if !m.hasAccess(fp, filesys.FilePermRead, policies) {
+		return nil, fs.ErrNotExist
+	}
+
+	f, err := m.FS.Open(fp)
+	if err != nil {
+		return nil, err
+	}
+
+	return filesys.NewFile(fp, f), nil
+}
+
+func (m *mount) ReadFile(fp string) ([]byte, error) {
+	fp, policies := m.cleanFp(fp)
+
+	if !m.hasAccess(fp, filesys.FilePermRead, policies) {
+		return nil, fs.ErrNotExist
+	}
+
+	return fs.ReadFile(m.FS, fp)
+}
+
+func (m *mount) hasAccess(fp string, op filesys.FilePerm, policies []*filesys.AccessPolicy) bool {
+	lvl := filesys.FilePerm(0)
+	for _, ap := range policies {
+		if ap.Perm == 0 {
+			return false
 		}
-		bytesDownloaded += w
+		if fileactions.MatchPath(fp, ap.Wrapped.GetMatches()) {
+			lvl |= ap.Perm
+		}
 	}
-
-	return bytesDownloaded, nil
+	return lvl&op != 0
 }
 
-func VolumesToMap(vols []*providerconfig.Volume) map[string]*providerconfig.Volume {
-	m := map[string]*providerconfig.Volume{}
-	for i, vol := range vols {
-		m[vol.GetName()] = vols[i]
-	}
+func (m *mount) cleanFp(fp string) (string, []*filesys.AccessPolicy) {
+	fp = strings.Trim(fp, "/ ")
 
-	return m
+	var policies []*filesys.AccessPolicy
+	if !strings.Contains(fp, "/") {
+		policies = append(policies, m.RootPolicies...)
+	} else {
+		policies = m.RecursivePolicies
+	}
+	return fp, policies
 }

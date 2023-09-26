@@ -1,71 +1,202 @@
 package volume
 
 import (
-	"bytes"
-	"github.com/bxcodec/faker/v3"
+	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/api/go/providerconfig"
-	"github.com/hostfactor/diazo/pkg/mocks/userfilesmocks"
-	"github.com/hostfactor/diazo/pkg/userfiles"
+	"github.com/hostfactor/diazo/pkg/collection"
+	"github.com/hostfactor/diazo/pkg/filesys"
+	"github.com/hostfactor/diazo/pkg/ptr"
 	"github.com/stretchr/testify/suite"
-	"io"
-	"os"
-	"path"
-	"path/filepath"
+	"io/fs"
 	"testing"
+	"testing/fstest"
 )
 
-var _ suite.BeforeTest = &VolumeTestSuite{}
-var _ suite.AfterTest = &VolumeTestSuite{}
-
-type VolumeTestSuite struct {
+type MountTestSuite struct {
 	suite.Suite
-
-	UserFilesClient *userfilesmocks.Client
 }
 
-func (v *VolumeTestSuite) AfterTest(_, _ string) {
-	v.UserFilesClient.AssertExpectations(v.T())
-}
+func (m *MountTestSuite) TestReadFile() {
+	type test struct {
+		Given       string
+		Expected    string
+		Access      []*filesystem.FileAccessPolicy
+		ExpectedErr error
+	}
 
-func (v *VolumeTestSuite) BeforeTest(_, _ string) {
-	v.UserFilesClient = new(userfilesmocks.Client)
-}
+	f := fstest.MapFS{
+		"my/dir/hello.txt":     {Data: []byte("hello")},
+		"hello.txt":            {Data: []byte("hello root")},
+		"my/not/dir/hello.txt": {Data: []byte("hello nested")},
+		"my/dir/again/bye.txt": {Data: []byte("byte")},
+		"my/dir/cool.txt":      {Data: []byte("cool")},
+		"my/dir/cool.zip":      {Data: []byte("cool zip")},
+	}
 
-func (v *VolumeTestSuite) TestMountFile() {
-	// -- Given
-	//
-	d := filepath.Join(os.TempDir(), faker.Username())
-	defer func() {
-		_ = os.RemoveAll(d)
-	}()
-	bp := "derp/123"
-	given := "_autosave.zip"
-	mounter := NewMounter(v.UserFilesClient, bp)
-	vol := &providerconfig.Volume{
-		Name: "save",
-		Mount: &providerconfig.VolumeMount{
-			Path: d,
+	tests := []test{
+		{
+			Given:    "hello.txt",
+			Expected: "hello root",
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Matches: &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+			},
+		},
+		{
+			Given:    "my/dir/hello.txt",
+			Expected: "hello",
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Recursive: ptr.Ptr(true),
+					Matches:   &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+			},
+		},
+		{
+			Given:       "hello.txt",
+			ExpectedErr: fs.ErrNotExist,
 		},
 	}
-	key := path.Join(bp, "saves", given)
-	fileContent := []byte("my file")
 
-	v.UserFilesClient.EXPECT().FetchFileReader(key).
-		Return(&userfiles.FileReader{Key: key, Reader: io.NopCloser(bytes.NewBuffer(fileContent))}, nil)
+	for i, v := range tests {
+		mnt := NewMount(&providerconfig.VolumeMount{
+			Access: v.Access,
+		}, f)
 
-	// -- When
-	//
-	expectedLen, err := mounter.MountFile(vol, given)
-
-	// -- Then
-	//
-	if v.NoError(err) {
-		v.Equal(expectedLen, int64(len(fileContent)))
-		content, _ := os.ReadFile(filepath.Join(d, given))
-		v.Equal(fileContent, content)
+		actual, err := fs.ReadFile(mnt, v.Given)
+		if v.ExpectedErr != nil {
+			m.EqualError(v.ExpectedErr, err.Error(), "test %d. Given: %s", i, v.Given)
+			continue
+		}
+		if m.NoError(err, "test %d. Given: %s", i, v.Given) {
+			m.Equal(v.Expected, string(actual), "test %d. Given: %s", i, v.Given)
+		}
 	}
 }
 
-func TestVolumeTestSuite(t *testing.T) {
-	suite.Run(t, new(VolumeTestSuite))
+func (m *MountTestSuite) TestReadDir() {
+	type test struct {
+		Given         string
+		ExpectedPaths []string
+		Access        []*filesystem.FileAccessPolicy
+		ExpectedErr   error
+	}
+
+	f := fstest.MapFS{
+		"my/dir/hello.txt":     {},
+		"hello.txt":            {},
+		"my/not/dir/hello.txt": {},
+		"my/dir/again/bye.txt": {},
+		"my/dir/cool.txt":      {},
+		"my/dir/cool.zip":      {},
+	}
+
+	tests := []test{
+		{
+			Given: ".",
+			ExpectedPaths: []string{
+				"hello.txt",
+			},
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Matches: &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+			},
+		},
+		{
+			Given: "my/dir",
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Matches: &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+			},
+		},
+		{
+			Given: "my/dir",
+			ExpectedPaths: []string{
+				"my/dir/hello.txt",
+			},
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Recursive: ptr.Ptr(true),
+					Matches:   &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+			},
+		},
+		{
+			Given: ".",
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Matches: &filesystem.FileMatcher{Name: "hello.zip"},
+				},
+			},
+		},
+		{
+			Given: ".",
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Matches: &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_none,
+					},
+					Matches: &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+			},
+		},
+		{
+			Given: ".",
+			ExpectedPaths: []string{
+				"my",
+				"hello.txt",
+			},
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Matches: &filesystem.FileMatcher{Glob: &filesystem.GlobMatcher{Value: []string{"**"}}},
+				},
+			},
+		},
+	}
+
+	for i, v := range tests {
+		mnt := NewMount(&providerconfig.VolumeMount{
+			Access: v.Access,
+		}, f)
+
+		actual, err := fs.ReadDir(mnt, v.Given)
+		if v.ExpectedErr != nil {
+			m.EqualError(v.ExpectedErr, err.Error(), "test %d. Given: %s", i, v.Given)
+			continue
+		}
+		if m.NoError(err, "test %d. Given: %s", i, v.Given) {
+			m.ElementsMatch(v.ExpectedPaths, collection.Map(actual, filesys.DirEntryAbs), "test %d. Given: %s", i, v.Given)
+		}
+	}
+}
+
+func TestMountTestSuite(t *testing.T) {
+	suite.Run(t, new(MountTestSuite))
 }
