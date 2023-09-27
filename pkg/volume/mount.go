@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"fmt"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/hostfactor/diazo/pkg/actions/fileactions"
@@ -14,6 +15,7 @@ import (
 type Mount interface {
 	fs.ReadFileFS
 	fs.ReadDirFS
+	fmt.Stringer
 }
 
 func NewMount(vol *providerconfig.VolumeMount, f fs.FS) Mount {
@@ -39,6 +41,10 @@ type mount struct {
 
 	RootPolicies      []*filesys.AccessPolicy
 	RecursivePolicies []*filesys.AccessPolicy
+}
+
+func (m *mount) String() string {
+	return m.Mount.GetPath()
 }
 
 func (m *mount) ReadDir(fp string) ([]fs.DirEntry, error) {
