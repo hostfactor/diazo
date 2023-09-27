@@ -179,6 +179,23 @@ func (m *MountTestSuite) TestReadDir() {
 				},
 			},
 		},
+		{
+			Given: "my/dir",
+			ExpectedPaths: []string{
+				"my/dir/cool.txt",
+				"my/dir/cool.zip",
+				"my/dir/again",
+				"my/dir/hello.txt",
+			},
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Recursive: ptr.Ptr(true),
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+				},
+			},
+		},
 	}
 
 	for i, v := range tests {

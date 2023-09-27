@@ -93,7 +93,7 @@ func (m *mount) hasAccess(fp string, op filesys.FilePerm, policies []*filesys.Ac
 		if ap.Perm == 0 {
 			return false
 		}
-		if fileactions.MatchPath(fp, ap.Wrapped.GetMatches()) {
+		if ap.Wrapped.GetMatches() == nil || fileactions.MatchPath(fp, ap.Wrapped.GetMatches()) {
 			lvl |= ap.Perm
 		}
 	}
