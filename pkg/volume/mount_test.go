@@ -196,6 +196,21 @@ func (m *MountTestSuite) TestReadDir() {
 				},
 			},
 		},
+		{
+			Given: ".",
+			ExpectedPaths: []string{
+				"hello.txt",
+				"my",
+			},
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Recursive: ptr.Ptr(true),
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+				},
+			},
+		},
 	}
 
 	for i, v := range tests {

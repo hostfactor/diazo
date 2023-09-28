@@ -109,11 +109,9 @@ func (m *mount) hasAccess(fp string, op filesys.FilePerm, policies []*filesys.Ac
 func (m *mount) cleanFp(fp string) (string, []*filesys.AccessPolicy) {
 	fp = strings.Trim(fp, "/ ")
 
-	var policies []*filesys.AccessPolicy
+	policies := m.RecursivePolicies
 	if !strings.Contains(fp, "/") {
 		policies = append(policies, m.RootPolicies...)
-	} else {
-		policies = m.RecursivePolicies
 	}
 	return fp, policies
 }
