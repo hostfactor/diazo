@@ -79,8 +79,9 @@ func (m *mount) Open(fp string) (fs.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	dir := filepath.Dir(fp)
 
-	return filesys.NewFile(fp, f), nil
+	return filesys.NewFile(filepath.Join(m.String(), dir), f), nil
 }
 
 func (m *mount) ReadFile(fp string) ([]byte, error) {

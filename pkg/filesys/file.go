@@ -23,10 +23,10 @@ func (f *File) Stat() (fs.FileInfo, error) {
 	return f.fileInfo, err
 }
 
-func NewFile(fp string, f fs.File) fs.File {
+func NewFile(dir string, f fs.File) fs.File {
 	return &File{
 		File:     f,
-		Dir:      fp,
+		Dir:      dir,
 		fileInfo: nil,
 	}
 }

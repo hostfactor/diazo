@@ -1,15 +1,20 @@
 package volume
 
 import (
+	"bytes"
+	"github.com/google/go-cmp/cmp"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/api/go/providerconfig"
 	"github.com/hostfactor/diazo/pkg/collection"
 	"github.com/hostfactor/diazo/pkg/filesys"
 	"github.com/hostfactor/diazo/pkg/ptr"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/testing/protocmp"
+	"io"
 	"io/fs"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 type MountTestSuite struct {
@@ -78,6 +83,88 @@ func (m *MountTestSuite) TestReadFile() {
 		if m.NoError(err, "test %d. Given: %s", i, v.Given) {
 			m.Equal(v.Expected, string(actual), "test %d. Given: %s", i, v.Given)
 		}
+	}
+}
+
+func (m *MountTestSuite) TestOpenFile() {
+	type test struct {
+		Given           string
+		ExpectedContent string
+		Access          []*filesystem.FileAccessPolicy
+		ExpectedErr     error
+		ExpectedFile    *filesystem.File
+	}
+
+	modTime := time.Now()
+	f := fstest.MapFS{
+		"my/dir/hello.txt":     {Data: []byte("hello"), ModTime: modTime},
+		"hello.txt":            {Data: []byte("hello root"), ModTime: modTime},
+		"my/not/dir/hello.txt": {Data: []byte("hello nested"), ModTime: modTime},
+		"my/dir/again/bye.txt": {Data: []byte("byte"), ModTime: modTime},
+		"my/dir/cool.txt":      {Data: []byte("cool"), ModTime: modTime},
+		"my/dir/cool.zip":      {Data: []byte("cool zip"), ModTime: modTime},
+	}
+
+	tests := []test{
+		{
+			Given:           "hello.txt",
+			ExpectedContent: "hello root",
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Matches: &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+			},
+			ExpectedFile: &filesystem.File{
+				Path:    "hello.txt",
+				Size:    10,
+				Created: modTime.UTC().Unix(),
+			},
+		},
+		{
+			Given:           "my/dir/hello.txt",
+			ExpectedContent: "hello",
+			Access: []*filesystem.FileAccessPolicy{
+				{
+					Perms: []filesystem.FileAccessPolicy_FilePerm{
+						filesystem.FileAccessPolicy_read,
+					},
+					Recursive: ptr.Ptr(true),
+					Matches:   &filesystem.FileMatcher{Name: "hello.txt"},
+				},
+			},
+			ExpectedFile: &filesystem.File{
+				Path:    "my/dir/hello.txt",
+				Size:    5,
+				Created: modTime.UTC().Unix(),
+			},
+		},
+		{
+			Given:       "hello.txt",
+			ExpectedErr: fs.ErrNotExist,
+		},
+	}
+
+	for i, v := range tests {
+		mnt := NewMount(&providerconfig.VolumeMount{
+			Access: v.Access,
+		}, f)
+
+		f, err := mnt.Open(v.Given)
+		if v.ExpectedErr != nil {
+			m.EqualError(v.ExpectedErr, err.Error(), "test %d. Given: %s", i, v.Given)
+			continue
+		}
+
+		buf := bytes.NewBuffer([]byte{})
+		_, _ = io.Copy(buf, f)
+		if m.NoError(err, "test %d. Given: %s", i, v.Given) {
+			m.Equal(v.ExpectedContent, string(buf.Bytes()), "test %d. Given: %s", i, v.Given)
+		}
+
+		m.Empty(cmp.Diff(v.ExpectedFile, filesys.FileToFile(f), protocmp.Transform()), "test %d. Given: %s", i, v.Given)
 	}
 }
 
