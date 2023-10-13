@@ -26,7 +26,11 @@ func defaultForms(conf *providerconfig.ProviderConfig) []*providerconfig.Setting
 		},
 	}
 
-	out[0].Steps[0].Components = append(out[0].Steps[0].Components, collection.Map(conf.GetVolumes(), func(f *providerconfig.Volume) *steps.Component {
+	filteredVols := collection.Filter(conf.GetVolumes(), func(t *providerconfig.Volume) bool {
+		return t.GetSource().GetFileInput() != nil
+	})
+
+	vols := collection.Map(filteredVols, func(f *providerconfig.Volume) *steps.Component {
 		fi := f.GetSource().GetFileInput()
 		return &steps.Component{
 			Id:    f.Name,
@@ -44,7 +48,8 @@ func defaultForms(conf *providerconfig.ProviderConfig) []*providerconfig.Setting
 				Folder:      ptr.NonZeroPtr(fi.GetDestination().GetBucketFolder()),
 			},
 		}
-	})...)
+	})
+	out[0].Steps[0].Components = append(out[0].Steps[0].Components, vols...)
 
 	out[0].Steps[0].Components = append(out[0].Steps[0].Components, &steps.Component{
 		Id: "settings",
