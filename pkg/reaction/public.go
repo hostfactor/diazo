@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/blueprint"
-	fileactions2 "github.com/hostfactor/diazo/pkg/actions/fileactions"
+	"github.com/hostfactor/diazo/pkg/actions"
 	"math"
 	"sync"
 	"time"
@@ -15,17 +15,20 @@ type ExecuteOpts struct {
 	Log  ExecuteLogOpts
 }
 
-func ExecuteSetupAction(folder string, act *blueprint.SetupAction, opts ExecuteOpts) error {
+func ExecuteSetupAction(ctx context.Context, folder string, act *blueprint.SetupAction, opts ExecuteOpts) error {
 	if v := act.GetUnzip(); v != nil {
-		return fileactions2.Unzip(v)
+		return actions.Unzip(v)
 	} else if v := act.GetRename(); v != nil {
-		return fileactions2.Rename(v)
+		return actions.Rename(v)
 	} else if v := act.GetExtract(); v != nil {
-		return fileactions2.Extract(v)
+		return actions.Extract(v)
 	} else if v := act.GetDownload(); v != nil {
-		return fileactions2.Download(folder, v, opts.File.DownloadOpts)
+		return actions.Download(folder, v, opts.File.DownloadOpts)
 	} else if v := act.GetMove(); v != nil {
-		return fileactions2.Move(v)
+		return actions.Move(v)
+	} else if v := act.GetShell(); v != nil {
+		_, err := actions.Shell(ctx, v)
+		return err
 	}
 	return nil
 }

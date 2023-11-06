@@ -578,6 +578,10 @@ github.com/hashicorp/serf v0.9.5/go.mod h1:UWDWwZeL5cuWDJdl0C6wrvrUwEqtQ4ZKBKKEN
 github.com/hashicorp/serf v0.9.6/go.mod h1:TXZNMjZQijwlDvp+r0b63xZ45H7JmCmgg4gpTwn9UV4=
 github.com/hostfactor/api/go v0.0.0-20230924204613-3eb5c78315d1 h1:um6z8aaa6wKe1JNelbNQRR/e5Q6nGMVyWL/NFHFb+NA=
 github.com/hostfactor/api/go v0.0.0-20230924204613-3eb5c78315d1/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
+github.com/hostfactor/api/go v0.0.0-20231104050646-334b46352923 h1:nGAG3LQct5u7gKZFSiwYCSk3sKL8l8xVOaQ7PmednPM=
+github.com/hostfactor/api/go v0.0.0-20231104050646-334b46352923/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
+github.com/hostfactor/api/go v0.0.0-20231105200036-e2dbc3bafb8b h1:Mov/utmfZxmQ3yNIrAoNbTkSs2nnLgYHCJtWjfBQ6rQ=
+github.com/hostfactor/api/go v0.0.0-20231105200036-e2dbc3bafb8b/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/iancoleman/strcase v0.2.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=

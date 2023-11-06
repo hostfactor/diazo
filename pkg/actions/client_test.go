@@ -1,4 +1,4 @@
-package fileactions
+package actions
 
 import (
 	"bytes"
@@ -7,9 +7,9 @@ import (
 	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/diazo/pkg/fileutils"
+	"github.com/hostfactor/diazo/pkg/mocks/userfilesmocks"
 	"github.com/hostfactor/diazo/pkg/testutils"
 	"github.com/hostfactor/diazo/pkg/userfiles"
-	"github.com/hostfactor/diazo/pkg/userfiles/mocks"
 	"github.com/stretchr/testify/suite"
 	"io"
 	"io/fs"
@@ -24,12 +24,12 @@ import (
 type ClientTestSuite struct {
 	suite.Suite
 
-	UserfilesClient *mocks.Client
+	UserfilesClient *userfilesmocks.Client
 	Svc             *client
 }
 
 func (p *ClientTestSuite) BeforeTest(_, _ string) {
-	p.UserfilesClient = new(mocks.Client)
+	p.UserfilesClient = new(userfilesmocks.Client)
 	p.Svc = &client{UserfilesClient: p.UserfilesClient}
 	fileutils.IsTest = true
 	Default = p.Svc
@@ -536,7 +536,7 @@ func (p *ClientTestSuite) TestDownload() {
 		v.After(dir)
 		p.Equal(v.ExpectedError, err, "test %d", i)
 		p.UserfilesClient.AssertExpectations(p.T())
-		p.UserfilesClient = new(mocks.Client)
+		p.UserfilesClient = new(userfilesmocks.Client)
 		p.Svc.UserfilesClient = p.UserfilesClient
 	}
 }
@@ -603,7 +603,7 @@ func (p *ClientTestSuite) TestUpload() {
 		v.After(b)
 		p.Equal(err, v.ExpectedError, "test %d", i)
 		p.UserfilesClient.AssertExpectations(p.T())
-		p.UserfilesClient = new(mocks.Client)
+		p.UserfilesClient = new(userfilesmocks.Client)
 		p.Svc.UserfilesClient = p.UserfilesClient
 	}
 }

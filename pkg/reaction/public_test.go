@@ -10,8 +10,8 @@ import (
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/api/go/blueprint/reaction"
 	"github.com/hostfactor/api/go/mocks"
-	"github.com/hostfactor/diazo/pkg/actions/fileactions"
-	fileactionsmocks "github.com/hostfactor/diazo/pkg/actions/fileactions/mocks"
+	actions2 "github.com/hostfactor/diazo/pkg/actions"
+	"github.com/hostfactor/diazo/pkg/mocks/actionsmocks"
 	"github.com/hostfactor/diazo/pkg/variable"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -24,12 +24,12 @@ import (
 type PublicTestSuite struct {
 	suite.Suite
 
-	FileActions *fileactionsmocks.Client
+	FileActions *actionsmocks.Client
 }
 
 func (p *PublicTestSuite) BeforeTest(_, _ string) {
-	p.FileActions = new(fileactionsmocks.Client)
-	fileactions.Default = p.FileActions
+	p.FileActions = new(actionsmocks.Client)
+	actions2.Default = p.FileActions
 }
 
 func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
@@ -80,7 +80,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 				p.FileActions.On("Upload", root, &actions.UploadFile{
 					From: &actions.UploadFile_Source{Path: fp},
 					To:   &filesystem.FileLocation{BucketFile: &filesystem.BucketFile{Name: "save1.zip"}},
-				}, fileactions.UploadOpts{}).Return(nil)
+				}, actions2.UploadOpts{}).Return(nil)
 			},
 		},
 		{
@@ -89,7 +89,7 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 				Download: &actions.DownloadFile{To: "${ext} ${name}"},
 			},
 			Before: func(fp string) {
-				p.FileActions.On("Download", root, &actions.DownloadFile{To: "zip save"}, fileactions.DownloadOpts{}).Return(nil)
+				p.FileActions.On("Download", root, &actions.DownloadFile{To: "zip save"}, actions2.DownloadOpts{}).Return(nil)
 			},
 		},
 		{
@@ -120,8 +120,8 @@ func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
 		err := ExecuteFileReactionAction(v.GivenFp, root, variable.NewStore(), v.Given, ExecuteFileOpts{})
 		p.Equal(v.ExpectedError, err)
 		p.FileActions.AssertExpectations(p.T())
-		p.FileActions = new(fileactionsmocks.Client)
-		fileactions.Default = p.FileActions
+		p.FileActions = new(actionsmocks.Client)
+		actions2.Default = p.FileActions
 	}
 }
 

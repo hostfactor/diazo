@@ -1,7 +1,8 @@
-package fileactions
+package actions
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 )
@@ -26,6 +28,7 @@ type Client interface {
 	Upload(root string, u *actions.UploadFile, opts UploadOpts) error
 	Zip(z *actions.ZipFile) error
 	MoveFile(a *actions.MoveFile) error
+	Shell(ctx context.Context, a *actions.Shell) ([]byte, error)
 }
 
 type OnError func(err error)
@@ -84,12 +87,21 @@ type OnDownloadFuncParams struct {
 
 type OnDownloadFunc func(params OnDownloadFuncParams)
 
+func New(c userfiles.Client) Client {
+	return &client{UserfilesClient: c}
+}
+
 type client struct {
 	UserfilesClient userfiles.Client
 }
 
-func New(c userfiles.Client) Client {
-	return &client{UserfilesClient: c}
+func (i *client) Shell(ctx context.Context, a *actions.Shell) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", a.GetCommand())
+	if cmd.Err != nil {
+		return nil, cmd.Err
+	}
+
+	return cmd.CombinedOutput()
 }
 
 func (i *client) MoveFile(a *actions.MoveFile) error {
@@ -181,6 +193,10 @@ func Extract(file *actions.ExtractFiles) error {
 
 func Move(file *actions.MoveFile) error {
 	return Default.MoveFile(file)
+}
+
+func Shell(ctx context.Context, a *actions.Shell) ([]byte, error) {
+	return Default.Shell(ctx, a)
 }
 
 func move(fp fs.FS, f *actions.MoveFile) error {

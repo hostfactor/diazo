@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
 	"github.com/hostfactor/api/go/providerconfig"
-	"github.com/hostfactor/diazo/pkg/actions/fileactions"
+	"github.com/hostfactor/diazo/pkg/actions"
 	"github.com/hostfactor/diazo/pkg/collection"
 	"github.com/hostfactor/diazo/pkg/filesys"
 	"io/fs"
@@ -100,7 +100,7 @@ func (m *mount) hasAccess(fp string, op filesys.FilePerm, policies []*filesys.Ac
 		if ap.Perm == 0 {
 			return false
 		}
-		if ap.Wrapped.GetMatches() == nil || fileactions.MatchPath(fp, ap.Wrapped.GetMatches()) {
+		if ap.Wrapped.GetMatches() == nil || actions.MatchPath(fp, ap.Wrapped.GetMatches()) {
 			lvl |= ap.Perm
 		}
 	}

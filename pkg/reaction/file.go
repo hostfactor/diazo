@@ -5,7 +5,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/reaction"
-	fileactions2 "github.com/hostfactor/diazo/pkg/actions/fileactions"
+	actions2 "github.com/hostfactor/diazo/pkg/actions"
 	"github.com/hostfactor/diazo/pkg/fileutils"
 	"github.com/hostfactor/diazo/pkg/variable"
 	"github.com/sirupsen/logrus"
@@ -17,8 +17,8 @@ import (
 
 type ExecuteFileOpts struct {
 	OnFileChange func(fn string)
-	UploadOpts   fileactions2.UploadOpts
-	DownloadOpts fileactions2.DownloadOpts
+	UploadOpts   actions2.UploadOpts
+	DownloadOpts actions2.DownloadOpts
 }
 
 // ExecuteFile executes the blueprint.FileTrigger using the root. The root is the base path of where to execute the action
@@ -72,14 +72,14 @@ func ExecuteFileReactionAction(fp, root string, s variable.Store, action *reacti
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering rename.")
-		return fileactions2.Rename(v)
+		return actions2.Rename(v)
 	} else if v := action.GetDownload(); v != nil {
 		if t := v.GetTo(); t != "" {
 			v.To = variable.RenderString(t, s, templateEntries...)
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering download.")
-		return fileactions2.Download(root, v, opts.DownloadOpts)
+		return actions2.Download(root, v, opts.DownloadOpts)
 	} else if v := action.GetExtract(); v != nil {
 		if t := v.GetTo(); t != "" {
 			v.To = variable.RenderString(t, s, templateEntries...)
@@ -92,7 +92,7 @@ func ExecuteFileReactionAction(fp, root string, s variable.Store, action *reacti
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering extract.")
-		return fileactions2.Extract(v)
+		return actions2.Extract(v)
 	} else if v := action.GetUnzip(); v != nil {
 		if f := v.GetFrom(); f != "" {
 			v.From = variable.RenderString(f, s, templateEntries...)
@@ -103,7 +103,7 @@ func ExecuteFileReactionAction(fp, root string, s variable.Store, action *reacti
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering unzip.")
-		return fileactions2.Unzip(v)
+		return actions2.Unzip(v)
 	} else if v := action.GetZip(); v != nil {
 		if p := v.GetTo().GetPath(); p != "" {
 			v.To = &actions.ZipFile_Destination{Path: variable.RenderString(p, s, templateEntries...)}
@@ -119,7 +119,7 @@ func ExecuteFileReactionAction(fp, root string, s variable.Store, action *reacti
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering zip.")
-		return fileactions2.Zip(v)
+		return actions2.Zip(v)
 	} else if v := action.GetUpload(); v != nil {
 		if v.GetFrom().GetPath() != "" {
 			v.From = &actions.UploadFile_Source{Path: variable.RenderString(v.GetFrom().GetPath(), s, templateEntries...)}
@@ -130,7 +130,7 @@ func ExecuteFileReactionAction(fp, root string, s variable.Store, action *reacti
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering upload.")
-		return fileactions2.Upload(root, v, opts.UploadOpts)
+		return actions2.Upload(root, v, opts.UploadOpts)
 	} else if v := action.GetMove(); v != nil {
 		if v.GetFrom().GetDirectory() != "" {
 			v.From.Directory = variable.RenderString(v.GetFrom().GetDirectory(), s, templateEntries...)
@@ -141,7 +141,7 @@ func ExecuteFileReactionAction(fp, root string, s variable.Store, action *reacti
 		}
 
 		logrus.WithField("data", v.String()).Debug("Triggering move.")
-		return fileactions2.Move(v)
+		return actions2.Move(v)
 	}
 
 	return nil
@@ -199,7 +199,7 @@ func WatchFile(ctx context.Context, callback WatchFileFunc, conds ...*reaction.F
 func FileReactionCondition(ev fsnotify.Event, c *reaction.FileReactionCondition) (matched bool) {
 	matched = true
 	if m := c.GetMatches(); m != nil {
-		matched = matched && fileactions2.MatchPath(ev.Name, m)
+		matched = matched && actions2.MatchPath(ev.Name, m)
 	}
 
 	if len(c.GetOp()) > 0 {
@@ -207,7 +207,7 @@ func FileReactionCondition(ev fsnotify.Event, c *reaction.FileReactionCondition)
 	}
 
 	if m := c.GetDoesntMatch(); m != nil {
-		matched = matched && !fileactions2.MatchPath(ev.Name, m)
+		matched = matched && !actions2.MatchPath(ev.Name, m)
 	}
 
 	return
