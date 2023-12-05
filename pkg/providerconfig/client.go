@@ -124,6 +124,7 @@ const (
 	ComponentTypeText
 	ComponentTypeSelectButton
 	ComponentTypeVersion
+	ComponentTypeDropdown
 )
 
 func CompileComponent(f fs.FS, comp *steps.Component) (*CompiledComponent, error) {
@@ -160,6 +161,8 @@ func CompileComponent(f fs.FS, comp *steps.Component) (*CompiledComponent, error
 		co.componentType = ComponentTypeVersion
 	} else if len(comp.GetSelectButton().GetOptions()) > 0 {
 		co.componentType = ComponentTypeSelectButton
+	} else if comp.Dropdown != nil {
+		co.componentType = ComponentTypeDropdown
 	} else {
 		co.componentType = ComponentTypeUnknown
 	}
