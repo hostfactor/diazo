@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"github.com/bxcodec/faker/v3"
 	"github.com/hostfactor/api/go/blueprint/filesystem"
+	"github.com/hostfactor/diazo/pkg/mocks/userfilesmocks"
 	"github.com/hostfactor/diazo/pkg/testutils"
 	"github.com/hostfactor/diazo/pkg/userfiles"
-	userfilesmock "github.com/hostfactor/diazo/pkg/userfiles/mocks"
 	"github.com/stretchr/testify/suite"
 	"io"
 	"os"
@@ -21,11 +21,11 @@ type PublicTestSuite struct {
 	suite.Suite
 
 	Client          *client
-	UserfilesClient *userfilesmock.Client
+	UserfilesClient *userfilesmocks.Client
 }
 
 func (p *PublicTestSuite) BeforeTest(_, _ string) {
-	p.UserfilesClient = new(userfilesmock.Client)
+	p.UserfilesClient = new(userfilesmocks.Client)
 
 	p.Client = &client{UserfilesClient: p.UserfilesClient}
 }

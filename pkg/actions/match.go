@@ -1,4 +1,4 @@
-package fileactions
+package actions
 
 import (
 	"github.com/hostfactor/api/go/blueprint/filesystem"
