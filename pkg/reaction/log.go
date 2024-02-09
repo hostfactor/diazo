@@ -1,6 +1,7 @@
 package reaction
 
 import (
+	"bufio"
 	"context"
 	"github.com/hostfactor/api/go/app"
 	"github.com/hostfactor/api/go/blueprint"
@@ -10,6 +11,7 @@ import (
 	"github.com/hostfactor/diazo/pkg/variable"
 	"github.com/nxadm/tail"
 	"github.com/sirupsen/logrus"
+	"io"
 	"regexp"
 )
 
@@ -28,6 +30,55 @@ type StatusChangeFunc func(s actions.SetStatus_Status)
 type LogLine struct {
 	Text string
 	Num  int
+}
+
+func Watch(ctx context.Context, r io.Reader, callback WatchLogFunc) context.Context {
+	lines := make(chan LogLine, 100)
+
+	ctx, cancel := context.WithCancelCause(ctx)
+
+	reader := bufio.NewReader(r)
+	go func() {
+		line := 1
+		var err error
+		defer func() {
+			cancel(err)
+			close(lines)
+		}()
+		var text string
+		for {
+			text, err = reader.ReadString('\n')
+			if err != nil {
+				logrus.WithError(err).Error("Watcher is exiting.")
+				return
+			}
+			lines <- LogLine{
+				Text: text,
+				Num:  line,
+			}
+			line++
+		}
+	}()
+
+	go func() {
+		defer func() {
+			err := context.Cause(ctx)
+			logrus.WithError(err).Info("Stopping watcher.")
+		}()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ll, ok := <-lines:
+				if !ok {
+					return
+				}
+				callback(ll)
+			}
+		}
+	}()
+
+	return ctx
 }
 
 func WatchLog(ctx context.Context, fp string, callback WatchLogFunc) error {

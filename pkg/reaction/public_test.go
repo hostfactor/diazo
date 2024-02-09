@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -30,6 +31,34 @@ type PublicTestSuite struct {
 func (p *PublicTestSuite) BeforeTest(_, _ string) {
 	p.FileActions = new(actionsmocks.Client)
 	actions2.Default = p.FileActions
+}
+
+func (p *PublicTestSuite) TestWatch() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "sh", "-c", "echo 123 && sleep 1 && echo 456")
+	stdout, _ := cmd.StdoutPipe()
+	str := stdout
+	actual := make([]LogLine, 0)
+	go func() {
+		c := Watch(ctx, str, func(ll LogLine) {
+			actual = append(actual, ll)
+		})
+		<-c.Done()
+	}()
+
+	err := cmd.Run()
+	if err != nil {
+		p.NoError(err)
+		return
+	}
+
+	cancel()
+	expected := []LogLine{
+		{Text: "123\n", Num: 1},
+		{Text: "456\n", Num: 2},
+	}
+	p.Equal(expected, actual)
 }
 
 func (p *PublicTestSuite) TestExecuteFileTriggerAction() {
