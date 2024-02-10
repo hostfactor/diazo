@@ -109,6 +109,21 @@ func WatchLog(ctx context.Context, fp string, callback WatchLogFunc) error {
 	return nil
 }
 
+func ExecuteLogReader(ctx context.Context, reader io.Reader, store variable.Store, appClient app.AppServiceClient, rx []*reaction.LogReaction, opts ExecuteLogOpts) (context.Context, error) {
+	matchers, err := CompileLogReactions(rx...)
+	if err != nil {
+		return nil, err
+	}
+
+	watchCtx := Watch(ctx, reader, func(ll LogLine) {
+		err := ReactToLog(ll, store, appClient, matchers, opts)
+		if err != nil {
+			logrus.WithError(err).Error("Failed to execute log action.")
+		}
+	})
+	return watchCtx, nil
+}
+
 func ExecuteLog(ctx context.Context, logPath string, store variable.Store, appClient app.AppServiceClient, rx []*reaction.LogReaction, opts ExecuteLogOpts) error {
 	matchers, err := CompileLogReactions(rx...)
 	if err != nil {
