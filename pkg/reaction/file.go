@@ -2,6 +2,7 @@ package reaction
 
 import (
 	"context"
+	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/blueprint/actions"
 	"github.com/hostfactor/api/go/blueprint/reaction"
@@ -23,9 +24,9 @@ type ExecuteFileOpts struct {
 
 // ExecuteFile executes the blueprint.FileTrigger using the root. The root is the base path of where to execute the action
 // e.g. for download or upload.
-func ExecuteFile(ctx context.Context, store variable.Store, root string, ft *reaction.FileReaction, opts ExecuteFileOpts) error {
+func ExecuteFile(ctx context.Context, store variable.Store, root string, ft *reaction.FileReaction, opts ExecuteFileOpts) (context.Context, error) {
 	logrus.WithField("data", ft.String()).Debug("Starting file triggers.")
-	err := WatchFile(ctx, func(event fsnotify.Event) {
+	c, err := WatchFile(ctx, func(event fsnotify.Event) {
 		if opts.OnFileChange != nil {
 			opts.OnFileChange(event.Name)
 		}
@@ -37,10 +38,10 @@ func ExecuteFile(ctx context.Context, store variable.Store, root string, ft *rea
 		}
 	}, ft.GetWhen()...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return c, nil
 }
 
 // ExecuteFileReactionAction executes the reaction.FileReactionAction using the root. The root is the base path of where
@@ -149,20 +150,27 @@ func ExecuteFileReactionAction(fp, root string, s variable.Store, action *reacti
 
 type WatchFileFunc func(event fsnotify.Event)
 
-func WatchFile(ctx context.Context, callback WatchFileFunc, conds ...*reaction.FileReactionCondition) error {
+func WatchFile(ctx context.Context, callback WatchFileFunc, conds ...*reaction.FileReactionCondition) (context.Context, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	ctx, cancel := context.WithCancelCause(ctx)
+
 	go func() {
+		defer func() {
+			cancel(err)
+		}()
 		for {
 			select {
 			case <-ctx.Done():
+				err = context.Cause(ctx)
 				return
 			case event, ok := <-watcher.Events:
 				logrus.WithField("fp", event.Name).WithField("op", event.Op).Trace("Detected file change.")
 				if !ok {
+					err = fmt.Errorf("watch closed")
 					return
 				}
 
@@ -188,11 +196,12 @@ func WatchFile(ctx context.Context, callback WatchFileFunc, conds ...*reaction.F
 			logrus.WithField("directory", d).Debug("Watching directory for triggers.")
 			err := watcher.Add(d)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
-	return nil
+
+	return ctx, nil
 }
 
 // FileReactionCondition checks if a condition matches an absolute filepath.
