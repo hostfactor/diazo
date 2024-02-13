@@ -186,6 +186,7 @@ func (c *CompiledComponent) DefaultValue() *blueprint.Value {
 		if opt != nil {
 			return &blueprint.Value{StringValue: opt.Value}
 		}
+	default:
 	}
 
 	return nil
