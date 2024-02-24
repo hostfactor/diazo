@@ -35,7 +35,7 @@ func CompileCommand(pl *appcommand.AppCommandPayload, cmds ...*appcommand.AppCom
 			return nil, except.NewInvalid("expected %s for %s but got %s", strings.ToLower(opt.Type.String()), opt.GetName(), strings.ToLower(typ.String()))
 		}
 		args = append(args, fmt.Sprintf("%v", val))
-		delete(activeArgs, pl.GetName())
+		delete(activeArgs, arg.GetName())
 	}
 	for _, v := range activeArgs {
 		if v.GetRequired() {
