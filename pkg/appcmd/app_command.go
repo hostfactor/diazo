@@ -9,32 +9,44 @@ import (
 	"strings"
 )
 
-func CompileCommand(pl *appcommand.AppCommandPayload, cmds ...*appcommand.AppCommand) ([]byte, error) {
-	idx := slices.IndexFunc(cmds, func(c *appcommand.AppCommand) bool {
-		return c.GetName() == pl.GetName()
-	})
-	if idx < 0 {
-		return nil, except.NewNotFound("%s is not a valid command", pl.GetName())
+func CompileExec(pl *appcommand.AppCommandPayload, cmds ...*appcommand.AppCommand) ([]byte, error) {
+	cmd, err := FindCommand(pl.GetName(), cmds...)
+	if err != nil {
+		return nil, err
 	}
 
 	args := make([]string, 0, len(pl.GetArgs()))
 	args = append(args, pl.GetName())
 
-	cmd := cmds[idx]
-	activeArgs := collection.Index(cmd.GetOptions(), func(v *appcommand.CommandOption) string {
+	return NewExec(pl.GetName(), pl.GetArgs(), cmd.GetSpec().GetOptions())
+}
+
+func NewExec(name string, args []*appcommand.AppCommandArg, opts []*appcommand.CommandOption) ([]byte, error) {
+	output := make([]string, 0, len(args))
+	output = append(output, name)
+	activeArgs := collection.Index(opts, func(v *appcommand.CommandOption) string {
 		return v.GetName()
 	})
-	for _, arg := range pl.GetArgs() {
+	for _, arg := range args {
 		opt := activeArgs[arg.GetName()]
 		if opt == nil {
-			return nil, except.NewNotFound("%s is not a valid opt for %s", arg.GetName(), pl.GetName())
+			return nil, except.NewNotFound("%s is not a valid opt for %s command", arg.GetName(), name)
 		}
 
 		val, typ := GetVal(arg.GetValue())
 		if opt.Type != typ {
 			return nil, except.NewInvalid("expected %s for %s but got %s", strings.ToLower(opt.Type.String()), opt.GetName(), strings.ToLower(typ.String()))
 		}
-		args = append(args, fmt.Sprintf("%v", val))
+		if typ == appcommand.CommandOption_SUBCOMMAND {
+			valArgs := val.([]*appcommand.AppCommandArg)
+			cc, err := NewExec(arg.GetName(), valArgs, opt.GetSubcommand().GetOptions())
+			if err != nil {
+				return nil, err
+			}
+			output = append(output, string(cc))
+		} else {
+			output = append(output, fmt.Sprintf("%v", val))
+		}
 		delete(activeArgs, arg.GetName())
 	}
 	for _, v := range activeArgs {
@@ -43,7 +55,24 @@ func CompileCommand(pl *appcommand.AppCommandPayload, cmds ...*appcommand.AppCom
 		}
 	}
 
-	return []byte(strings.Join(args, " ")), nil
+	return []byte(strings.Join(output, " ")), nil
+}
+
+type Identifiable interface {
+	GetName() string
+	GetDescription() string
+}
+
+func FindCommand[T Identifiable](name string, cmds ...T) (out T, err error) {
+	idx := slices.IndexFunc(cmds, func(c T) bool {
+		return c.GetName() == name
+	})
+	if idx < 0 {
+		err = except.NewNotFound("%s is not a valid command", name)
+		return
+	}
+
+	return cmds[idx], nil
 }
 
 func GetVal(val *appcommand.CommandValue) (any, appcommand.CommandOption_Type) {
@@ -58,6 +87,8 @@ func GetVal(val *appcommand.CommandValue) (any, appcommand.CommandOption_Type) {
 		return val.GetFloatVal(), appcommand.CommandOption_FLOAT
 	} else if val.IntVal != nil {
 		return val.GetIntVal(), appcommand.CommandOption_INT
+	} else if val.ListVal != nil {
+		return val.ListVal, appcommand.CommandOption_SUBCOMMAND
 	}
 	return nil, appcommand.CommandOption_UNKNOWN
 }
@@ -129,6 +160,10 @@ func NewVal(a any) *appcommand.CommandValue {
 		v := int32(t)
 		return &appcommand.CommandValue{
 			IntVal: &v,
+		}
+	case []*appcommand.AppCommandArg:
+		return &appcommand.CommandValue{
+			ListVal: t,
 		}
 	}
 	return nil

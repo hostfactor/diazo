@@ -43,12 +43,12 @@ func (a *AppCommandTestSuite) TestCompileCommand() {
 				},
 			},
 			Cmds: []*appcommand.AppCommand{
-				{Name: "save", Options: []*appcommand.CommandOption{
+				{Name: "save", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
 					{Name: "int", Type: appcommand.CommandOption_INT},
 					{Name: "str", Type: appcommand.CommandOption_STRING},
 					{Name: "bool", Type: appcommand.CommandOption_BOOL},
 					{Name: "float", Type: appcommand.CommandOption_FLOAT},
-				}},
+				}}},
 			},
 			Expected: "save 1 s true 1.1",
 		},
@@ -61,9 +61,9 @@ func (a *AppCommandTestSuite) TestCompileCommand() {
 				},
 			},
 			Cmds: []*appcommand.AppCommand{
-				{Name: "save", Options: []*appcommand.CommandOption{
+				{Name: "save", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
 					{Name: "arg1", Type: appcommand.CommandOption_INT},
-				}},
+				}}},
 			},
 			ExpectedErr: "expected int for arg1 but got string: invalid",
 		},
@@ -73,9 +73,9 @@ func (a *AppCommandTestSuite) TestCompileCommand() {
 				Name: "save",
 			},
 			Cmds: []*appcommand.AppCommand{
-				{Name: "save", Options: []*appcommand.CommandOption{
+				{Name: "save", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
 					{Name: "arg1", Type: appcommand.CommandOption_INT, Required: ptr.Ptr(true)},
-				}},
+				}}},
 			},
 			ExpectedErr: "arg arg1 is required: invalid",
 		},
@@ -85,9 +85,9 @@ func (a *AppCommandTestSuite) TestCompileCommand() {
 				Name: "save",
 			},
 			Cmds: []*appcommand.AppCommand{
-				{Name: "save", Options: []*appcommand.CommandOption{
+				{Name: "save", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
 					{Name: "int", Type: appcommand.CommandOption_INT},
-				}},
+				}}},
 			},
 			Expected: "save",
 		},
@@ -110,16 +110,70 @@ func (a *AppCommandTestSuite) TestCompileCommand() {
 				},
 			},
 			Cmds: []*appcommand.AppCommand{
-				{Name: "save", Options: []*appcommand.CommandOption{
+				{Name: "save", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
 					{Name: "arg1", Type: appcommand.CommandOption_INT},
-				}},
+				}}},
 			},
-			ExpectedErr: "arg2 is not a valid opt for save: not found",
+			ExpectedErr: "arg2 is not a valid opt for save command: not found",
+		},
+		{
+			Description: "subcommand",
+			Given: &appcommand.AppCommandPayload{
+				Name: "user",
+				Args: []*appcommand.AppCommandArg{
+					{
+						Name: "add",
+						Value: NewVal([]*appcommand.AppCommandArg{
+							{
+								Name:  "user name",
+								Value: NewVal("hi"),
+							},
+						}),
+					},
+				},
+			},
+			Cmds: []*appcommand.AppCommand{
+				{Name: "user", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
+					{Name: "add", Type: appcommand.CommandOption_SUBCOMMAND, Subcommand: &appcommand.AppCommandSpec{
+						Options: []*appcommand.CommandOption{
+							{Name: "user name", Type: appcommand.CommandOption_STRING, Required: ptr.Ptr(true)},
+						},
+					}},
+				}}},
+			},
+			Expected: "user add hi",
+		},
+		{
+			Description: "missing subcommand",
+			Given: &appcommand.AppCommandPayload{
+				Name: "user",
+				Args: []*appcommand.AppCommandArg{
+					{
+						Name: "ad",
+						Value: NewVal([]*appcommand.AppCommandArg{
+							{
+								Name:  "user name",
+								Value: NewVal("hi"),
+							},
+						}),
+					},
+				},
+			},
+			Cmds: []*appcommand.AppCommand{
+				{Name: "user", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
+					{Name: "add", Type: appcommand.CommandOption_SUBCOMMAND, Subcommand: &appcommand.AppCommandSpec{
+						Options: []*appcommand.CommandOption{
+							{Name: "user name", Type: appcommand.CommandOption_STRING, Required: ptr.Ptr(true)},
+						},
+					}},
+				}}},
+			},
+			ExpectedErr: "ad is not a valid opt for user command: not found",
 		},
 	}
 
 	for _, v := range tests {
-		cmd, err := CompileCommand(v.Given, v.Cmds...)
+		cmd, err := CompileExec(v.Given, v.Cmds...)
 		if err != nil {
 			a.EqualError(err, v.ExpectedErr, v.Description)
 			continue
