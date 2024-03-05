@@ -134,7 +134,7 @@ func (a *AppCommandTestSuite) TestCompileCommand() {
 			},
 			Cmds: []*appcommand.AppCommand{
 				{Name: "user", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
-					{Name: "add", Type: appcommand.CommandOption_SUBCOMMAND, Subcommand: &appcommand.AppCommandSpec{
+					{Name: "add", Type: appcommand.CommandOption_SUBCOMMAND, Spec: &appcommand.AppCommandSpec{
 						Options: []*appcommand.CommandOption{
 							{Name: "user name", Type: appcommand.CommandOption_STRING, Required: ptr.Ptr(true)},
 						},
@@ -161,7 +161,7 @@ func (a *AppCommandTestSuite) TestCompileCommand() {
 			},
 			Cmds: []*appcommand.AppCommand{
 				{Name: "user", Spec: &appcommand.AppCommandSpec{Options: []*appcommand.CommandOption{
-					{Name: "add", Type: appcommand.CommandOption_SUBCOMMAND, Subcommand: &appcommand.AppCommandSpec{
+					{Name: "add", Type: appcommand.CommandOption_SUBCOMMAND, Spec: &appcommand.AppCommandSpec{
 						Options: []*appcommand.CommandOption{
 							{Name: "user name", Type: appcommand.CommandOption_STRING, Required: ptr.Ptr(true)},
 						},

@@ -39,7 +39,7 @@ func NewExec(name string, args []*appcommand.AppCommandArg, opts []*appcommand.C
 		}
 		if typ == appcommand.CommandOption_SUBCOMMAND {
 			valArgs := val.([]*appcommand.AppCommandArg)
-			cc, err := NewExec(arg.GetName(), valArgs, opt.GetSubcommand().GetOptions())
+			cc, err := NewExec(arg.GetName(), valArgs, opt.GetSpec().GetOptions())
 			if err != nil {
 				return nil, err
 			}

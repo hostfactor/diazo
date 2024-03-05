@@ -594,6 +594,8 @@ github.com/hostfactor/api/go v0.0.0-20240228071809-c9c601869514 h1:esFXLo93KnmIH
 github.com/hostfactor/api/go v0.0.0-20240228071809-c9c601869514/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
 github.com/hostfactor/api/go v0.0.0-20240228074147-73035f658d04 h1:2heEqGX4fZ5BpI3e4/xnr0c6DF9xDXu3bAyjThwM5vU=
 github.com/hostfactor/api/go v0.0.0-20240228074147-73035f658d04/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
+github.com/hostfactor/api/go v0.0.0-20240305043335-cf9bb659fa61 h1:+yzytX5Co7vmy10L8T4RQgCxA0SCLwvvxBKuscWWD7o=
+github.com/hostfactor/api/go v0.0.0-20240305043335-cf9bb659fa61/go.mod h1:BPl1fWTa0458aaL3TqjwbU7lgKgewJtUhoxfTMARMKM=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/iancoleman/strcase v0.2.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
