@@ -192,9 +192,13 @@ func WatchFile(ctx context.Context, callback WatchFileFunc, conds ...*reaction.F
 
 	for _, v := range conds {
 		for _, d := range v.GetDirectories() {
-			_ = os.MkdirAll(d, os.ModePerm)
+			err = os.MkdirAll(d, os.ModePerm)
+			if err != nil {
+				logrus.WithError(err).WithField("directory", d).Warn("Failed to create dir.")
+			}
 			logrus.WithField("directory", d).Debug("Watching directory for triggers.")
-			err := watcher.Add(d)
+
+			err = watcher.Add(d)
 			if err != nil {
 				logrus.WithError(err).WithField("directory", d).Error("Failed to watch directory.")
 				return nil, err
