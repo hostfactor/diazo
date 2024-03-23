@@ -258,6 +258,15 @@ func InspectZipFileFs(f fs.FS, fp string) (*zip.Reader, error) {
 	return read, nil
 }
 
+func ChownR(path string, uid, gid int) error {
+	return filepath.Walk(path, func(name string, info os.FileInfo, err error) error {
+		if err == nil {
+			err = os.Chown(name, uid, gid)
+		}
+		return err
+	})
+}
+
 func extractFsPaths(v reflect.Value) (fs.FS, []string) {
 	sl := make([]string, 0)
 	var f fs.FS

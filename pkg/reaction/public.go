@@ -5,6 +5,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/hostfactor/api/go/blueprint"
 	"github.com/hostfactor/diazo/pkg/actions"
+	"github.com/hostfactor/diazo/pkg/fileutils"
+	"github.com/hostfactor/diazo/pkg/ptr"
+	"github.com/sirupsen/logrus"
 	"math"
 	"sync"
 	"time"
@@ -13,24 +16,43 @@ import (
 type ExecuteOpts struct {
 	File ExecuteFileOpts
 	Log  ExecuteLogOpts
+	Uid  *int
+	Gid  *int
 }
 
-func ExecuteSetupAction(ctx context.Context, folder string, act *blueprint.SetupAction, opts ExecuteOpts) error {
+func ExecuteSetupAction(ctx context.Context, folder string, act *blueprint.SetupAction, opts ExecuteOpts) (err error) {
+	var createdDir string
 	if v := act.GetUnzip(); v != nil {
-		return actions.Unzip(v)
+		createdDir = v.To
+		err = actions.Unzip(v)
 	} else if v := act.GetRename(); v != nil {
-		return actions.Rename(v)
+		createdDir = v.To
+		err = actions.Rename(v)
 	} else if v := act.GetExtract(); v != nil {
-		return actions.Extract(v)
+		createdDir = v.To
+		err = actions.Extract(v)
 	} else if v := act.GetDownload(); v != nil {
-		return actions.Download(folder, v, opts.File.DownloadOpts)
+		createdDir = v.To
+		err = actions.Download(folder, v, opts.File.DownloadOpts)
 	} else if v := act.GetMove(); v != nil {
-		return actions.Move(v)
+		createdDir = v.To
+		err = actions.Move(v)
 	} else if v := act.GetShell(); v != nil {
-		_, err := actions.Shell(ctx, v)
-		return err
+		_, err = actions.Shell(ctx, v)
 	}
-	return nil
+	if err != nil {
+		return
+	}
+
+	if createdDir != "" && (opts.Gid != nil || opts.Uid != nil) {
+		er := fileutils.ChownR(createdDir, ptr.Deref(opts.Uid), ptr.Deref(opts.Gid))
+		if err != nil {
+			logrus.WithError(err).Error("Failed to chown dir.")
+			return er
+		}
+	}
+
+	return
 }
 
 type debouncer struct {
